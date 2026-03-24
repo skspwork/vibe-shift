@@ -5,8 +5,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  useNodesState,
-  useEdgesState,
   type Node as RFNode,
   type Edge as RFEdge,
   Position,
@@ -14,6 +12,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useAppStore } from "@/lib/store";
 import { NodeCard } from "./NodeCard";
+import { NODE_LABELS } from "@cddai/shared";
 
 const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   overview: { bg: "#2E4057", border: "#1a2a3a", text: "#ffffff" },
@@ -40,45 +39,88 @@ interface Props {
 
 export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Props) {
   const { selectedNodeId, setSelectedNodeId, focusNodeId, setFocusNodeId } = useAppStore();
+  const { viewMode, hiddenLanes } = useAppStore();
 
-  // Build focus set for highlight
+  // Filter nodes by view mode and hidden lanes
+  const SUMMARY_LANES = new Set(["overview", "need", "req"]);
+  const filteredNodes = useMemo(() => {
+    return rawNodes.filter((n: any) => {
+      if (viewMode === "summary" && !SUMMARY_LANES.has(n.type)) return false;
+      if (hiddenLanes.has(n.type)) return false;
+      return true;
+    });
+  }, [rawNodes, viewMode, hiddenLanes]);
+
+  const visibleNodeIds = useMemo(() => new Set(filteredNodes.map((n: any) => n.id)), [filteredNodes]);
+
+  const filteredEdges = useMemo(() => {
+    return rawEdges.filter((e: any) => visibleNodeIds.has(e.from_node_id) && visibleNodeIds.has(e.to_node_id));
+  }, [rawEdges, visibleNodeIds]);
+
+  // Build adjacency maps for directed traversal
+  const { adjDown, adjUp } = useMemo(() => {
+    const down = new Map<string, string[]>();
+    const up = new Map<string, string[]>();
+    for (const e of rawEdges) {
+      down.set(e.from_node_id, [...(down.get(e.from_node_id) || []), e.to_node_id]);
+      up.set(e.to_node_id, [...(up.get(e.to_node_id) || []), e.from_node_id]);
+    }
+    return { adjDown: down, adjUp: up };
+  }, [rawEdges]);
+
+  // Build focus set: upstream (parents) + downstream (children) only
   const focusSet = useMemo(() => {
     if (!focusNodeId) return null;
     const set = new Set<string>();
     set.add(focusNodeId);
-    // Walk upstream and downstream
-    const queue = [focusNodeId];
-    const visited = new Set<string>();
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      if (visited.has(current)) continue;
-      visited.add(current);
-      set.add(current);
-      for (const e of rawEdges) {
-        if (e.from_node_id === current && !visited.has(e.to_node_id)) {
-          queue.push(e.to_node_id);
-        }
-        if (e.to_node_id === current && !visited.has(e.from_node_id)) {
-          queue.push(e.from_node_id);
+
+    // Walk upstream (parent direction)
+    const upQueue = [focusNodeId];
+    while (upQueue.length > 0) {
+      const current = upQueue.shift()!;
+      for (const parent of adjUp.get(current) || []) {
+        if (!set.has(parent)) {
+          set.add(parent);
+          upQueue.push(parent);
         }
       }
     }
+
+    // Walk downstream (child direction)
+    const downQueue = [focusNodeId];
+    while (downQueue.length > 0) {
+      const current = downQueue.shift()!;
+      for (const child of adjDown.get(current) || []) {
+        if (!set.has(child)) {
+          set.add(child);
+          downQueue.push(child);
+        }
+      }
+    }
+
     return set;
-  }, [focusNodeId, rawEdges]);
+  }, [focusNodeId, adjDown, adjUp]);
+
+  // Visible lanes for layout
+  const visibleLanes = useMemo(() => {
+    if (viewMode === "summary") return LANE_ORDER.filter((l) => SUMMARY_LANES.has(l) && !hiddenLanes.has(l));
+    return LANE_ORDER.filter((l) => !hiddenLanes.has(l));
+  }, [viewMode, hiddenLanes]);
 
   // Layout: group by type (lane), position horizontally
   const rfNodes: RFNode[] = useMemo(() => {
     const byLane: Record<string, any[]> = {};
-    for (const node of rawNodes) {
+    for (const node of filteredNodes) {
       const lane = node.type;
       if (!byLane[lane]) byLane[lane] = [];
       byLane[lane].push(node);
     }
 
     const result: RFNode[] = [];
-    for (const lane of LANE_ORDER) {
+    for (let li = 0; li < visibleLanes.length; li++) {
+      const lane = visibleLanes[li];
       const laneNodes = byLane[lane] || [];
-      const laneX = LANE_ORDER.indexOf(lane) * 220;
+      const laneX = li * 220;
 
       laneNodes.forEach((node, i) => {
         const isFocused = focusSet ? focusSet.has(node.id) : true;
@@ -99,10 +141,10 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
       });
     }
     return result;
-  }, [rawNodes, selectedNodeId, focusSet]);
+  }, [filteredNodes, visibleLanes, selectedNodeId, focusSet]);
 
   const rfEdges: RFEdge[] = useMemo(() => {
-    return rawEdges.map((e: any) => {
+    return filteredEdges.map((e: any) => {
       const isFocused = focusSet
         ? focusSet.has(e.from_node_id) && focusSet.has(e.to_node_id)
         : true;
@@ -114,11 +156,11 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
         style: {
           stroke: isFocused ? "#94a3b8" : "#e2e8f0",
           strokeWidth: isFocused ? 2 : 1,
-          opacity: isFocused ? 1 : 0.1,
+          opacity: isFocused ? 1 : 0.3,
         },
       };
     });
-  }, [rawEdges, focusSet]);
+  }, [filteredEdges, focusSet]);
 
   const onNodeClick = useCallback(
     (_: any, node: RFNode) => {
@@ -136,7 +178,7 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
     <div className="w-full h-full">
       {/* Lane headers */}
       <div className="absolute top-0 left-0 right-0 z-10 flex h-8 bg-gray-50/80 border-b">
-        {LANE_ORDER.map((lane) => {
+        {visibleLanes.map((lane) => {
           const colors = NODE_COLORS[lane];
           return (
             <div
@@ -148,7 +190,7 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
                 borderBottom: `2px solid ${colors.border}`,
               }}
             >
-              {lane}
+              {NODE_LABELS[lane] || lane}
             </div>
           );
         })}

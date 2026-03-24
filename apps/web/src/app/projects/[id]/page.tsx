@@ -4,6 +4,8 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { TraceGraph } from "@/components/graph/TraceGraph";
+import { MatrixView } from "@/components/graph/MatrixView";
+import { ViewToolbar } from "@/components/graph/ViewToolbar";
 import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useAppStore } from "@/lib/store";
@@ -24,6 +26,7 @@ export default function ProjectPage() {
   });
 
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
+  const viewMode = useAppStore((s) => s.viewMode);
 
   return (
     <div className="h-screen flex flex-col">
@@ -41,14 +44,19 @@ export default function ProjectPage() {
           <ChatPanel projectId={projectId} onNodesCreated={refetchGraph} />
         </div>
 
-        <div className="flex-1 relative">
-          {graph && (
-            <TraceGraph
-              nodes={graph.nodes}
-              edges={graph.edges}
-              projectId={projectId}
-            />
-          )}
+        <div className="flex-1 flex flex-col">
+          <ViewToolbar />
+          <div className="flex-1 relative">
+            {graph && viewMode === "matrix" ? (
+              <MatrixView nodes={graph.nodes} edges={graph.edges} />
+            ) : graph ? (
+              <TraceGraph
+                nodes={graph.nodes}
+                edges={graph.edges}
+                projectId={projectId}
+              />
+            ) : null}
+          </div>
         </div>
 
         <div className="w-[320px] border-l bg-white overflow-y-auto shrink-0">

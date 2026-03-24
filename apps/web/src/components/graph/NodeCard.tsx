@@ -19,7 +19,7 @@ export function NodeCard({ data }: { data: NodeCardData }) {
         backgroundColor: data.colors.bg,
         border: `2px solid ${data.selected ? "#3b82f6" : data.colors.border}`,
         color: data.colors.text,
-        opacity: data.dimmed ? 0.1 : 1,
+        opacity: data.dimmed ? 0.3 : 1,
         boxShadow: data.selected ? "0 0 0 2px #3b82f6" : "none",
       }}
     >

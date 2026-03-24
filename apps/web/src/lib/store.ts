@@ -11,6 +11,8 @@ interface SessionNodeInfo {
   title: string;
 }
 
+type ViewMode = "flow" | "summary" | "matrix";
+
 interface AppState {
   // Selected node
   selectedNodeId: string | null;
@@ -19,6 +21,14 @@ interface AppState {
   // Focus mode
   focusNodeId: string | null;
   setFocusNodeId: (id: string | null) => void;
+
+  // View mode
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+
+  // Lane filter
+  hiddenLanes: Set<string>;
+  toggleLane: (lane: string) => void;
 
   // Chat session
   sessionNodeId: string | null;
@@ -42,6 +52,18 @@ export const useAppStore = create<AppState>((set) => ({
 
   focusNodeId: null,
   setFocusNodeId: (id) => set({ focusNodeId: id }),
+
+  viewMode: "flow",
+  setViewMode: (mode) => set({ viewMode: mode }),
+
+  hiddenLanes: new Set<string>(),
+  toggleLane: (lane) =>
+    set((state) => {
+      const next = new Set(state.hiddenLanes);
+      if (next.has(lane)) next.delete(lane);
+      else next.add(lane);
+      return { hiddenLanes: next };
+    }),
 
   sessionNodeId: null,
   sessionNodeInfo: null,

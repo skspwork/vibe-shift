@@ -25,15 +25,25 @@ app.post("/", async (c) => {
     updated_at: now,
   });
 
-  // Create edge from parent
-  const edgeId = uuid();
-  await db.insert(schema.edges).values({
-    id: edgeId,
-    from_node_id: parsed.parent_id,
-    to_node_id: nodeId,
-    link_type: "derives",
-    created_at: now,
-  });
+  if (parsed.conv_id) {
+    // Link from conv to new node (same structure as chat-created nodes)
+    await db.insert(schema.edges).values({
+      id: uuid(),
+      from_node_id: parsed.conv_id,
+      to_node_id: nodeId,
+      link_type: "derives",
+      created_at: now,
+    });
+  } else {
+    // Direct link from parent
+    await db.insert(schema.edges).values({
+      id: uuid(),
+      from_node_id: parsed.parent_id,
+      to_node_id: nodeId,
+      link_type: "derives",
+      created_at: now,
+    });
+  }
 
   const [node] = await db
     .select()
@@ -173,6 +183,24 @@ app.get("/:id/conv", async (c) => {
   }
 
   return c.json(null);
+});
+
+app.post("/:id/messages", async (c) => {
+  const convNodeId = c.req.param("id");
+  const body = await c.req.json();
+  const { role, content } = body;
+  if (!role || !content) return c.json({ error: "role and content required" }, 400);
+
+  const msgId = uuid();
+  await db.insert(schema.conv_messages).values({
+    id: msgId,
+    conv_node_id: convNodeId,
+    role,
+    content,
+    created_at: new Date().toISOString(),
+  });
+
+  return c.json({ id: msgId }, 201);
 });
 
 app.get("/:id/trace", async (c) => {

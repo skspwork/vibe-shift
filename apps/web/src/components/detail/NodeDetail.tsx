@@ -24,6 +24,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const queryClient = useQueryClient();
   const setSession = useAppStore((s) => s.setSession);
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
+  const setFocusNodeId = useAppStore((s) => s.setFocusNodeId);
 
   const { data: node } = useQuery({
     queryKey: ["node", nodeId],
@@ -49,6 +50,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     mutationFn: () => api.deleteNode(nodeId),
     onSuccess: () => {
       setSelectedNodeId(null);
+      setFocusNodeId(null);
       queryClient.invalidateQueries({ queryKey: ["graph"] });
       onUpdate();
     },

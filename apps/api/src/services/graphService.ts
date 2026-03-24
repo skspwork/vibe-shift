@@ -58,14 +58,18 @@ export async function getProjectGraph(projectId: string, includeConv = false) {
     }
   }
 
-  // Deduplicate edges
+  // Deduplicate edges and ensure unique IDs
   const seen = new Set<string>();
+  let syntheticIdx = 0;
   const uniqueEdges = resolvedEdges.filter((e) => {
     const key = `${e.from_node_id}-${e.to_node_id}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  });
+  }).map((e) => ({
+    ...e,
+    id: `${e.from_node_id}-${e.to_node_id}-${syntheticIdx++}`,
+  }));
 
   return { nodes: visibleNodes, edges: uniqueEdges };
 }

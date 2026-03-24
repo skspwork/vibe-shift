@@ -75,6 +75,7 @@ export const CreateNodeSchema = z.object({
   title: z.string().min(1).max(100),
   content: z.string(),
   parent_id: z.string().uuid(),
+  conv_id: z.string().uuid().optional(),
   rationale_note: z.string().optional(),
   created_by: CreatedBy.default("user"),
 });

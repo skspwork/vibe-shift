@@ -20,6 +20,7 @@ export default function ProjectPage() {
   const { data: graph, refetch: refetchGraph } = useQuery({
     queryKey: ["graph", projectId],
     queryFn: () => api.getGraph(projectId),
+    refetchInterval: 3000,
   });
 
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);

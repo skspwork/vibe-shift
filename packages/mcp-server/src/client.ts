@@ -40,6 +40,11 @@ export const apiClient = {
   getNodeTrace: (id: string, direction = "both") =>
     request<any>(`/nodes/${id}/trace?direction=${direction}`),
   getNodeConv: (id: string) => request<any>(`/nodes/${id}/conv`),
+  addConvMessage: (convId: string, role: string, content: string) =>
+    request<any>(`/nodes/${convId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ role, content }),
+    }),
 
   // Edges
   createEdge: (data: any) =>

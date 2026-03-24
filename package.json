@@ -1,0 +1,16 @@
+{
+  "name": "cddai",
+  "private": true,
+  "packageManager": "pnpm@9.5.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "db:generate": "pnpm --filter @cddai/api db:generate",
+    "db:migrate": "pnpm --filter @cddai/api db:migrate"
+  },
+  "devDependencies": {
+    "turbo": "^2.8.20"
+  }
+}

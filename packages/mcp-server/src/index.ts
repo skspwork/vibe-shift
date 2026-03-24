@@ -457,6 +457,259 @@ server.registerTool(
   }
 );
 
+// ─── Tool 10: list_projects ───
+server.registerTool(
+  "list_projects",
+  {
+    description: "CddAIのプロジェクト一覧を取得する",
+    annotations: {
+      title: "プロジェクト一覧",
+      readOnlyHint: true,
+    },
+    inputSchema: {},
+  },
+  async () => {
+    const projects = await apiClient.getProjects();
+    const summary = projects.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      purpose: p.purpose,
+    }));
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
+    };
+  }
+);
+
+// ─── Tool 11: list_tasks ───
+server.registerTool(
+  "list_tasks",
+  {
+    description:
+      "指定プロジェクトのタスクノード一覧を取得する。各タスクの親designノード名も付与される。",
+    annotations: {
+      title: "タスク一覧",
+      readOnlyHint: true,
+    },
+    inputSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+    },
+  },
+  async ({ project_id }) => {
+    const graph = await apiClient.getProjectGraph(project_id, false);
+    const tasks = graph.nodes.filter((n: any) => n.type === "task");
+
+    // Build parent map from edges
+    const parentMap = new Map<string, string>();
+    for (const e of graph.edges) {
+      parentMap.set(e.to_node_id, e.from_node_id);
+    }
+    const nodeMap = new Map<string, any>();
+    for (const n of graph.nodes) {
+      nodeMap.set(n.id, n);
+    }
+
+    const result = tasks.map((t: any) => {
+      const parentId = parentMap.get(t.id);
+      const parent = parentId ? nodeMap.get(parentId) : null;
+      return {
+        id: t.id,
+        title: t.title,
+        content: t.content,
+        parent_design: parent ? { id: parent.id, title: parent.title } : null,
+      };
+    });
+
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  }
+);
+
+// ─── Tool 12: get_task_brief ───
+server.registerTool(
+  "get_task_brief",
+  {
+    description:
+      "タスクノードの実装指示書を生成する。上流の全コンテキスト（要求・要件・仕様・設計）を構造化テキストで返す。Claude Codeでの実装時に使用。",
+    annotations: {
+      title: "タスク実装指示書",
+      readOnlyHint: true,
+    },
+    inputSchema: {
+      task_id: z.string().uuid().describe("タスクノードID"),
+    },
+  },
+  async ({ task_id }) => {
+    const task = await apiClient.getNode(task_id);
+    if (task.type !== "task") {
+      return {
+        content: [{ type: "text" as const, text: `エラー: 指定ノードはtaskではなく${task.type}です` }],
+      };
+    }
+
+    // Get upstream trace
+    const trace = await apiClient.getNodeTrace(task_id, "upstream");
+    const nodesByType: Record<string, any[]> = {};
+    for (const n of trace.nodes) {
+      if (!nodesByType[n.type]) nodesByType[n.type] = [];
+      nodesByType[n.type].push(n);
+    }
+
+    // Get downstream for related code/test nodes
+    const downstream = await apiClient.getNodeTrace(task_id, "downstream");
+    const codeNodes = downstream.nodes.filter((n: any) => n.type === "code");
+    const testNodes = downstream.nodes.filter((n: any) => n.type === "test");
+
+    // Build structured brief
+    const sections: string[] = [];
+
+    sections.push(`# 実装タスク: ${task.title}\n`);
+
+    // Overview
+    const overviews = nodesByType["overview"] || [];
+    if (overviews.length > 0) {
+      sections.push(`## プロジェクト概要`);
+      for (const o of overviews) {
+        sections.push(`${o.title}\n${o.content}\n`);
+      }
+    }
+
+    // Need
+    const needs = nodesByType["need"] || [];
+    if (needs.length > 0) {
+      sections.push(`## 要求（なぜ必要か）`);
+      for (const n of needs) {
+        sections.push(`### ${n.title}\n${n.content}\n`);
+      }
+    }
+
+    // Req
+    const reqs = nodesByType["req"] || [];
+    if (reqs.length > 0) {
+      sections.push(`## 要件（何を満たすか）`);
+      for (const r of reqs) {
+        sections.push(`### ${r.title}\n${r.content}\n`);
+      }
+    }
+
+    // Spec
+    const specs = nodesByType["spec"] || [];
+    if (specs.length > 0) {
+      sections.push(`## 仕様（詳細な振る舞い）`);
+      for (const s of specs) {
+        sections.push(`### ${s.title}\n${s.content}\n`);
+      }
+    }
+
+    // Design
+    const designs = nodesByType["design"] || [];
+    if (designs.length > 0) {
+      sections.push(`## 設計（実装方針）`);
+      for (const d of designs) {
+        sections.push(`### ${d.title}\n${d.content}\n`);
+      }
+    }
+
+    // Task detail
+    sections.push(`## タスク詳細`);
+    sections.push(`${task.content}\n`);
+    if (task.rationale_note) {
+      sections.push(`### 補足メモ\n${task.rationale_note}\n`);
+    }
+
+    // Existing code/test
+    if (codeNodes.length > 0) {
+      sections.push(`## 既存のコードノード`);
+      for (const c of codeNodes) {
+        sections.push(`- ${c.title}: ${c.content}`);
+      }
+      sections.push("");
+    }
+    if (testNodes.length > 0) {
+      sections.push(`## 既存のテストノード`);
+      for (const t of testNodes) {
+        sections.push(`- ${t.title}: ${t.content}`);
+      }
+      sections.push("");
+    }
+
+    sections.push(`## 指示`);
+    sections.push(`上記のコンテキストに基づいてコードを実装してください。`);
+    sections.push(`実装完了後、PRを作成し、CddAIにcodeノードとして登録してください。`);
+    sections.push(`\nタスクID: ${task_id}`);
+    sections.push(`プロジェクトID: ${task.project_id}`);
+
+    return {
+      content: [{ type: "text" as const, text: sections.join("\n") }],
+    };
+  }
+);
+
+// ─── Prompt 3: implement_task ───
+server.registerPrompt(
+  "implement_task",
+  {
+    description:
+      "CddAIのタスクをClaude Codeで実装し、PRを作成してcodeノードを登録するワークフロー",
+    argsSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+      task_id: z.string().uuid().describe("実装対象のタスクノードID"),
+    },
+  },
+  async ({ project_id, task_id }) => {
+    const task = await apiClient.getNode(task_id);
+
+    return {
+      messages: [
+        {
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            text: `あなたはCddAIと連携した実装アシスタントです。以下のワークフローに従ってタスクを実装してください。
+
+## 対象タスク
+- タイトル: ${task.title}
+- タスクID: ${task_id}
+- プロジェクトID: ${project_id}
+
+## ワークフロー（この順序で進めてください）
+
+### Step 1: コンテキスト取得
+get_task_brief(task_id: "${task_id}") を呼び出して、タスクの全コンテキスト（要求・要件・仕様・設計）を取得してください。
+
+### Step 2: 実装計画の提示
+コンテキストを読んだ上で、何をどう実装するか計画をユーザーに提示してください。
+ユーザーの承認を待ってから実装に進んでください。
+
+### Step 3: ブランチ作成と実装
+- git checkout -b feature/cddai-${task_id.slice(0, 8)} でブランチを作成
+- コンテキストに基づいてコードを実装
+- 適切な粒度でコミット
+
+### Step 4: PR作成
+- gh pr create でPRを作成
+- PRのタイトルにタスク名を含める
+- PRの本文に要件・仕様の概要を含める
+
+### Step 5: CddAIへの登録
+- create_node(type:"code", parent_id:"${task_id}", project_id:"${project_id}", title:"PR #番号", content:PR_URL) でcodeノードを登録
+- 必要に応じて update_node でタスクの経緯メモにPR URLを追記
+
+### Step 6: 完了報告
+実装内容のサマリーとPR URLをユーザーに報告してください。
+
+## 重要な注意事項
+- Step 2でユーザーの承認を得てから実装に進むこと
+- 実装はget_task_briefで取得したコンテキストに忠実に行うこと
+- PRを作成したら必ずcodeノードとしてCddAIに登録すること`,
+          },
+        },
+      ],
+    };
+  }
+);
+
 // ─── Start server ───
 async function main() {
   const transport = new StdioServerTransport();

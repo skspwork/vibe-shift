@@ -5,6 +5,12 @@ interface ChatMessage {
   content: string;
 }
 
+interface SessionNodeInfo {
+  id: string;
+  type: string;
+  title: string;
+}
+
 interface AppState {
   // Selected node
   selectedNodeId: string | null;
@@ -16,10 +22,15 @@ interface AppState {
 
   // Chat session
   sessionNodeId: string | null;
+  sessionNodeInfo: SessionNodeInfo | null;
   sessionType: "overview" | "node_session";
   convId: string | null;
   chatHistory: ChatMessage[];
-  setSession: (nodeId: string | null, type: "overview" | "node_session") => void;
+  setSession: (
+    nodeId: string | null,
+    type: "overview" | "node_session",
+    nodeInfo?: SessionNodeInfo | null
+  ) => void;
   setConvId: (id: string) => void;
   addChatMessage: (msg: ChatMessage) => void;
   clearChat: () => void;
@@ -33,14 +44,27 @@ export const useAppStore = create<AppState>((set) => ({
   setFocusNodeId: (id) => set({ focusNodeId: id }),
 
   sessionNodeId: null,
+  sessionNodeInfo: null,
   sessionType: "overview",
   convId: null,
   chatHistory: [],
-  setSession: (nodeId, type) =>
-    set({ sessionNodeId: nodeId, sessionType: type, convId: null, chatHistory: [] }),
+  setSession: (nodeId, type, nodeInfo = null) =>
+    set({
+      sessionNodeId: nodeId,
+      sessionNodeInfo: nodeInfo,
+      sessionType: type,
+      convId: null,
+      chatHistory: [],
+    }),
   setConvId: (id) => set({ convId: id }),
   addChatMessage: (msg) =>
     set((state) => ({ chatHistory: [...state.chatHistory, msg] })),
   clearChat: () =>
-    set({ sessionNodeId: null, sessionType: "overview", convId: null, chatHistory: [] }),
+    set({
+      sessionNodeId: null,
+      sessionNodeInfo: null,
+      sessionType: "overview",
+      convId: null,
+      chatHistory: [],
+    }),
 }));

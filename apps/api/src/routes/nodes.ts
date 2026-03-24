@@ -99,19 +99,51 @@ app.patch("/:id", async (c) => {
 
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
-  // Delete related edges
-  await db
-    .delete(schema.edges)
-    .where(eq(schema.edges.from_node_id, id));
-  await db
-    .delete(schema.edges)
-    .where(eq(schema.edges.to_node_id, id));
-  // Delete conv messages if conv
-  await db
-    .delete(schema.conv_messages)
-    .where(eq(schema.conv_messages.conv_node_id, id));
-  await db.delete(schema.nodes).where(eq(schema.nodes.id, id));
-  return c.json({ ok: true });
+
+  // Prevent overview deletion
+  const [target] = await db
+    .select()
+    .from(schema.nodes)
+    .where(eq(schema.nodes.id, id));
+  if (!target) return c.json({ error: "Not found" }, 404);
+  if (target.type === "overview")
+    return c.json({ error: "Cannot delete overview node" }, 400);
+
+  // Collect all descendant node IDs (BFS via edges)
+  const allEdges = await db.select().from(schema.edges);
+  const childMap = new Map<string, string[]>();
+  for (const e of allEdges) {
+    const children = childMap.get(e.from_node_id) || [];
+    children.push(e.to_node_id);
+    childMap.set(e.from_node_id, children);
+  }
+
+  const toDelete = new Set<string>();
+  const queue = [id];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (toDelete.has(current)) continue;
+    toDelete.add(current);
+    for (const child of childMap.get(current) || []) {
+      queue.push(child);
+    }
+  }
+
+  // Delete all in order: conv_messages -> edges -> nodes
+  for (const nodeId of toDelete) {
+    await db
+      .delete(schema.conv_messages)
+      .where(eq(schema.conv_messages.conv_node_id, nodeId));
+  }
+  for (const nodeId of toDelete) {
+    await db.delete(schema.edges).where(eq(schema.edges.from_node_id, nodeId));
+    await db.delete(schema.edges).where(eq(schema.edges.to_node_id, nodeId));
+  }
+  for (const nodeId of toDelete) {
+    await db.delete(schema.nodes).where(eq(schema.nodes.id, nodeId));
+  }
+
+  return c.json({ ok: true, deleted_count: toDelete.size });
 });
 
 app.get("/:id/conv", async (c) => {

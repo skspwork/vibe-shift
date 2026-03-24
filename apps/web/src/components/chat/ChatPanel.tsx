@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { Send, X, MessageCircle } from "lucide-react";
+import { Send, X, MessageCircle, StopCircle } from "lucide-react";
 import { NODE_LABELS } from "@cddai/shared";
 
 interface Props {
@@ -18,13 +18,13 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
 
   const {
     sessionNodeId,
+    sessionNodeInfo,
     sessionType,
     convId,
     chatHistory,
     setConvId,
     addChatMessage,
     clearChat,
-    setSession,
   } = useAppStore();
 
   const chatMutation = useMutation({
@@ -46,6 +46,12 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
         onNodesCreated();
       }
     },
+    onError: (error) => {
+      addChatMessage({
+        role: "assistant",
+        content: `エラーが発生しました: ${error.message}`,
+      });
+    },
   });
 
   const handleSend = () => {
@@ -60,26 +66,48 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);
 
+  const isNodeSession = sessionNodeId && sessionType === "node_session";
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-3 border-b bg-gray-50">
-        {sessionNodeId && sessionType === "node_session" ? (
-          <div className="flex items-center justify-between">
-            <div className="text-xs">
-              <span className="font-medium text-blue-600">セッション中</span>
+        {isNodeSession && sessionNodeInfo ? (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-medium text-blue-600 uppercase tracking-wide">
+                セッション中
+              </span>
+              <button
+                onClick={clearChat}
+                title="セッションを終了"
+                className="text-gray-400 hover:text-red-500 transition"
+              >
+                <StopCircle size={16} />
+              </button>
             </div>
-            <button
-              onClick={clearChat}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={14} />
-            </button>
+            <div className="text-xs text-gray-700">
+              <span className="font-medium">
+                {NODE_LABELS[sessionNodeInfo.type] || sessionNodeInfo.type}
+              </span>
+              : {sessionNodeInfo.title}
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <MessageCircle size={14} className="text-gray-400" />
-            <span className="text-xs text-gray-500">新規会話</span>
+            <span className="text-xs text-gray-500">
+              {chatHistory.length > 0 ? "overview セッション" : "新規会話"}
+            </span>
+            {chatHistory.length > 0 && (
+              <button
+                onClick={clearChat}
+                title="会話をリセット"
+                className="ml-auto text-gray-400 hover:text-red-500 transition"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -87,8 +115,13 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {chatHistory.length === 0 && (
-          <div className="text-center text-gray-400 text-xs mt-8">
-            メッセージを入力してAIと会話を開始
+          <div className="text-center text-gray-400 text-xs mt-8 space-y-2">
+            <MessageCircle size={24} className="mx-auto opacity-50" />
+            <p>
+              {isNodeSession
+                ? "このノードについてAIと対話を開始してください"
+                : "メッセージを入力してAIと会話を開始"}
+            </p>
           </div>
         )}
         {chatHistory.map((msg, i) => (
@@ -105,19 +138,25 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
                   : "bg-gray-100 text-gray-800"
               }`}
             >
-              <div className="whitespace-pre-wrap text-xs">{msg.content}</div>
+              <div className="whitespace-pre-wrap text-xs leading-relaxed">
+                {formatMessage(msg.content)}
+              </div>
             </div>
           </div>
         ))}
         {chatMutation.isPending && (
           <div className="text-left">
-            <div className="inline-block bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-400">
-              考え中...
+            <div className="inline-block bg-gray-100 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <span className="animate-pulse">●</span> 考え中...
+              </div>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Created nodes notification */}
 
       {/* Input */}
       <div className="p-3 border-t">
@@ -131,7 +170,11 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
                 handleSend();
               }
             }}
-            placeholder="メッセージを入力..."
+            placeholder={
+              isNodeSession
+                ? `${NODE_LABELS[sessionNodeInfo?.type || ""] || "ノード"}について質問...`
+                : "メッセージを入力..."
+            }
             className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             disabled={chatMutation.isPending}
           />
@@ -145,5 +188,28 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Strip ```json blocks from display and show a cleaner message */
+function formatMessage(content: string): string {
+  // Replace JSON code blocks with a summary
+  return content.replace(
+    /```json\s*\{[\s\S]*?"nodes"\s*:\s*\[([\s\S]*?)\][\s\S]*?\}[\s\S]*?```/g,
+    (_, nodesContent) => {
+      try {
+        const nodesPart = `[${nodesContent}]`;
+        const nodes = JSON.parse(nodesPart);
+        const summary = nodes
+          .map(
+            (n: any) =>
+              `  ✅ [${NODE_LABELS[n.type] || n.type}] ${n.title}`
+          )
+          .join("\n");
+        return `\n📋 以下のノードを登録しました:\n${summary}\n`;
+      } catch {
+        return content;
+      }
+    }
   );
 }

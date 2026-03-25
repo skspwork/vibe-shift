@@ -20,30 +20,20 @@ app.post("/", async (c) => {
     title: parsed.title,
     content: parsed.content,
     rationale_note: parsed.rationale_note || null,
+    conversation_id: parsed.conversation_id || null,
     created_by: parsed.created_by,
     created_at: now,
     updated_at: now,
   });
 
-  if (parsed.conv_id) {
-    // Link from conv to new node (same structure as chat-created nodes)
-    await db.insert(schema.edges).values({
-      id: uuid(),
-      from_node_id: parsed.conv_id,
-      to_node_id: nodeId,
-      link_type: "derives",
-      created_at: now,
-    });
-  } else {
-    // Direct link from parent
-    await db.insert(schema.edges).values({
-      id: uuid(),
-      from_node_id: parsed.parent_id,
-      to_node_id: nodeId,
-      link_type: "derives",
-      created_at: now,
-    });
-  }
+  // Always link from parent to new node
+  await db.insert(schema.edges).values({
+    id: uuid(),
+    from_node_id: parsed.parent_id,
+    to_node_id: nodeId,
+    link_type: "derives",
+    created_at: now,
+  });
 
   const [node] = await db
     .select()
@@ -139,12 +129,7 @@ app.delete("/:id", async (c) => {
     }
   }
 
-  // Delete all in order: conv_messages -> edges -> nodes
-  for (const nodeId of toDelete) {
-    await db
-      .delete(schema.conv_messages)
-      .where(eq(schema.conv_messages.conv_node_id, nodeId));
-  }
+  // Delete all in order: edges -> nodes
   for (const nodeId of toDelete) {
     await db.delete(schema.edges).where(eq(schema.edges.from_node_id, nodeId));
     await db.delete(schema.edges).where(eq(schema.edges.to_node_id, nodeId));
@@ -159,48 +144,27 @@ app.delete("/:id", async (c) => {
 app.get("/:id/conv", async (c) => {
   const nodeId = c.req.param("id");
 
-  // Find conv nodes that are parents of this node (via edges)
-  const parentEdges = await db
+  const [node] = await db
     .select()
-    .from(schema.edges)
-    .where(eq(schema.edges.to_node_id, nodeId));
+    .from(schema.nodes)
+    .where(eq(schema.nodes.id, nodeId));
+  if (!node || !node.conversation_id) return c.json(null);
 
-  for (const edge of parentEdges) {
-    const [parentNode] = await db
-      .select()
-      .from(schema.nodes)
-      .where(eq(schema.nodes.id, edge.from_node_id));
-    if (parentNode && parentNode.type === "conv") {
-      const messages = await db
-        .select()
-        .from(schema.conv_messages)
-        .where(eq(schema.conv_messages.conv_node_id, parentNode.id));
-      return c.json({
-        conv_node: parentNode,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      });
-    }
-  }
+  const [conversation] = await db
+    .select()
+    .from(schema.conversations)
+    .where(eq(schema.conversations.id, node.conversation_id));
+  if (!conversation) return c.json(null);
 
-  return c.json(null);
-});
+  const messages = await db
+    .select()
+    .from(schema.conv_messages)
+    .where(eq(schema.conv_messages.conversation_id, conversation.id));
 
-app.post("/:id/messages", async (c) => {
-  const convNodeId = c.req.param("id");
-  const body = await c.req.json();
-  const { role, content } = body;
-  if (!role || !content) return c.json({ error: "role and content required" }, 400);
-
-  const msgId = uuid();
-  await db.insert(schema.conv_messages).values({
-    id: msgId,
-    conv_node_id: convNodeId,
-    role,
-    content,
-    created_at: new Date().toISOString(),
+  return c.json({
+    conversation,
+    messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });
-
-  return c.json({ id: msgId }, 201);
 });
 
 app.get("/:id/trace", async (c) => {

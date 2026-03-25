@@ -8,7 +8,10 @@ import { MatrixView } from "@/components/graph/MatrixView";
 import { ViewToolbar } from "@/components/graph/ViewToolbar";
 import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ProjectSettings } from "@/components/setup/ProjectSettings";
 import { useAppStore } from "@/lib/store";
+import { Settings } from "lucide-react";
+import { useState } from "react";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -27,6 +30,7 @@ export default function ProjectPage() {
 
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const viewMode = useAppStore((s) => s.viewMode);
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <div className="h-screen flex flex-col">
@@ -35,7 +39,16 @@ export default function ProjectPage() {
           CddAI
         </a>
         {project && (
-          <span className="text-gray-500">{project.name}</span>
+          <>
+            <span className="text-gray-500">{project.name}</span>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="ml-2 text-gray-400 hover:text-gray-600 transition"
+              title="プロジェクト設定"
+            >
+              <Settings size={16} />
+            </button>
+          </>
         )}
       </header>
 
@@ -73,6 +86,13 @@ export default function ProjectPage() {
           )}
         </div>
       </div>
+
+      {showSettings && project && (
+        <ProjectSettings
+          project={project}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
   );
 }

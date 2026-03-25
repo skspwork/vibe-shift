@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateProjectSchema, LANE_TYPES, NODE_LABELS } from "@cddai/shared";
+import { CreateProjectSchema, LANE_TYPES, NODE_LABELS, METHODOLOGY_LABELS } from "@cddai/shared";
 import { api } from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,7 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
       stakeholders: "",
       constraints: "",
       active_lanes: ["need", "req", "spec", "design", "task"],
+      methodology: "strict" as const,
     },
   });
 
@@ -41,6 +42,17 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
   });
 
   const activeLanes = watch("active_lanes");
+  const methodology = watch("methodology");
+
+  const METHODOLOGY_DEFAULTS: Record<string, string[]> = {
+    strict: ["need", "req", "spec", "design", "task"],
+    mvp: ["need", "task"],
+  };
+
+  const setMethodology = (m: "strict" | "mvp") => {
+    setValue("methodology", m);
+    setValue("active_lanes", METHODOLOGY_DEFAULTS[m] as any);
+  };
 
   const toggleLane = (lane: string) => {
     const current = activeLanes || [];
@@ -119,6 +131,33 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
               rows={2}
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              開発手法
+            </label>
+            <div className="flex gap-3">
+              {(["strict", "mvp"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMethodology(m)}
+                  className={`flex-1 px-3 py-2 rounded-lg text-sm border-2 transition text-left ${
+                    methodology === m
+                      ? "border-blue-500 bg-blue-50 text-blue-800"
+                      : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="font-medium">{METHODOLOGY_LABELS[m]}</div>
+                  <div className="text-xs mt-0.5 opacity-70">
+                    {m === "strict"
+                      ? "要求→要件→仕様→設計→タスクの順に定義"
+                      : "要求→タスクで素早く実装、あとから補完"}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>

@@ -18,10 +18,14 @@ export const api = {
   createProject: (data: any) =>
     request<any>("/projects", { method: "POST", body: JSON.stringify(data) }),
   getProject: (id: string) => request<any>(`/projects/${id}`),
+  updateProject: (id: string, data: any) =>
+    request<any>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteProject: (id: string) =>
+    request<any>(`/projects/${id}`, { method: "DELETE" }),
 
   // Graph
-  getGraph: (projectId: string, includeConv = false) =>
-    request<any>(`/projects/${projectId}/graph?include_conv=${includeConv}`),
+  getGraph: (projectId: string) =>
+    request<any>(`/projects/${projectId}/graph`),
 
   // Nodes
   createNode: (data: any) =>

@@ -34,14 +34,14 @@ interface AppState {
   sessionNodeId: string | null;
   sessionNodeInfo: SessionNodeInfo | null;
   sessionType: "overview" | "node_session";
-  convId: string | null;
+  conversationId: string | null;
   chatHistory: ChatMessage[];
   setSession: (
     nodeId: string | null,
     type: "overview" | "node_session",
     nodeInfo?: SessionNodeInfo | null
   ) => void;
-  setConvId: (id: string) => void;
+  setConversationId: (id: string) => void;
   addChatMessage: (msg: ChatMessage) => void;
   clearChat: () => void;
 }
@@ -68,17 +68,17 @@ export const useAppStore = create<AppState>((set) => ({
   sessionNodeId: null,
   sessionNodeInfo: null,
   sessionType: "overview",
-  convId: null,
+  conversationId: null,
   chatHistory: [],
   setSession: (nodeId, type, nodeInfo = null) =>
     set({
       sessionNodeId: nodeId,
       sessionNodeInfo: nodeInfo,
       sessionType: type,
-      convId: null,
+      conversationId: null,
       chatHistory: [],
     }),
-  setConvId: (id) => set({ convId: id }),
+  setConversationId: (id) => set({ conversationId: id }),
   addChatMessage: (msg) =>
     set((state) => ({ chatHistory: [...state.chatHistory, msg] })),
   clearChat: () =>
@@ -86,7 +86,7 @@ export const useAppStore = create<AppState>((set) => ({
       sessionNodeId: null,
       sessionNodeInfo: null,
       sessionType: "overview",
-      convId: null,
+      conversationId: null,
       chatHistory: [],
     }),
 }));

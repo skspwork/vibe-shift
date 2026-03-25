@@ -9,7 +9,7 @@ interface ConvMessage {
 }
 
 interface Props {
-  convNode: {
+  conversation: {
     id: string;
     title: string;
     created_at: string;
@@ -17,7 +17,7 @@ interface Props {
   messages: ConvMessage[];
 }
 
-export function ConvLogViewer({ convNode, messages }: Props) {
+export function ConvLogViewer({ conversation, messages }: Props) {
   const [expanded, setExpanded] = useState(false);
 
   if (messages.length === 0) return null;
@@ -28,10 +28,10 @@ export function ConvLogViewer({ convNode, messages }: Props) {
       <div className="px-3 py-2">
         <div className="flex items-center gap-1.5 text-blue-700 font-medium text-xs mb-1">
           <MessageCircle size={13} />
-          AIセッション「{convNode.title}」
+          AIセッション「{conversation.title}」
         </div>
         <div className="text-[11px] text-gray-500 mb-1.5">
-          {new Date(convNode.created_at).toLocaleString("ja-JP")}
+          {new Date(conversation.created_at).toLocaleString("ja-JP")}
         </div>
 
         {/* Preview: first 2 messages */}

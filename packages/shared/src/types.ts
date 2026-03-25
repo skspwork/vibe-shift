@@ -3,16 +3,18 @@ import type {
   NodeType as NodeTypeSchema,
   CreatedBy as CreatedBySchema,
   LinkType as LinkTypeSchema,
+  Methodology as MethodologySchema,
   CreateProjectSchema,
   CreateNodeSchema,
   UpdateNodeSchema,
   CreateEdgeSchema,
   ChatRequestSchema,
-} from "./schemas";
+} from "./schemas.js";
 
 export type NodeTypeValue = z.infer<typeof NodeTypeSchema>;
 export type CreatedByValue = z.infer<typeof CreatedBySchema>;
 export type LinkTypeValue = z.infer<typeof LinkTypeSchema>;
+export type MethodologyValue = z.infer<typeof MethodologySchema>;
 
 export type CreateProject = z.infer<typeof CreateProjectSchema>;
 export type CreateNode = z.infer<typeof CreateNodeSchema>;
@@ -24,6 +26,7 @@ export interface Project {
   id: string;
   name: string;
   active_lanes: string[];
+  methodology: string;
   created_at: string;
 }
 
@@ -34,6 +37,7 @@ export interface AppNode {
   title: string;
   content: string;
   rationale_note: string | null;
+  conversation_id: string | null;
   created_by: CreatedByValue;
   created_at: string;
   updated_at: string;
@@ -57,7 +61,14 @@ export interface ConvMessage {
   content: string;
 }
 
+export interface Conversation {
+  id: string;
+  project_id: string;
+  title: string;
+  created_at: string;
+}
+
 export interface ConvData {
-  conv_node: AppNode;
+  conversation: Conversation;
   messages: ConvMessage[];
 }

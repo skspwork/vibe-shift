@@ -35,7 +35,7 @@ export function RationaleSection({ node, convData, onUpdate }: Props) {
         <div className="space-y-3">
           {/* AI conversation log viewer */}
           <ConvLogViewer
-            convNode={convData.conv_node}
+            conversation={convData.conversation}
             messages={convData.messages}
           />
 

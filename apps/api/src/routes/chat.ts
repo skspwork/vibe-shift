@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
 import { eq, and } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { ChatRequestSchema, CHILD_TYPE_MAP } from "@cddai/shared";
+import { ChatRequestSchema, getAllowedChildTypeMap } from "@cddai/shared";
 import { getNodeContext } from "../services/contextService.js";
 import { chat } from "../services/aiService.js";
 
@@ -12,6 +12,13 @@ app.post("/", async (c) => {
   const body = await c.req.json();
   const parsed = ChatRequestSchema.parse(body);
   const now = new Date().toISOString();
+
+  // Get project methodology
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(eq(schema.projects.id, parsed.project_id));
+  const methodology = project?.methodology || "strict";
 
   // Get the target node (overview or specific node)
   let targetNodeId: string;
@@ -37,26 +44,14 @@ app.post("/", async (c) => {
     parentType = node.type;
   }
 
-  // Get or create conv node
-  let convId = parsed.conv_id;
+  // Get or create conversation
+  let convId = parsed.conversation_id;
   if (!convId) {
     convId = uuid();
-    await db.insert(schema.nodes).values({
+    await db.insert(schema.conversations).values({
       id: convId,
       project_id: parsed.project_id,
-      type: "conv",
       title: parsed.message.substring(0, 50),
-      content: "",
-      created_by: "ai",
-      created_at: now,
-      updated_at: now,
-    });
-    // Link conv to parent node
-    await db.insert(schema.edges).values({
-      id: uuid(),
-      from_node_id: targetNodeId,
-      to_node_id: convId,
-      link_type: "derives",
       created_at: now,
     });
   }
@@ -64,7 +59,7 @@ app.post("/", async (c) => {
   // Save user message
   await db.insert(schema.conv_messages).values({
     id: uuid(),
-    conv_node_id: convId,
+    conversation_id: convId,
     role: "user",
     content: parsed.message,
     created_at: now,
@@ -76,13 +71,14 @@ app.post("/", async (c) => {
     context,
     message: parsed.message,
     parentType,
+    methodology,
     history: parsed.history,
   });
 
   // Save AI message
   await db.insert(schema.conv_messages).values({
     id: uuid(),
-    conv_node_id: convId,
+    conversation_id: convId,
     role: "assistant",
     content: aiResponse.response,
     created_at: new Date().toISOString(),
@@ -96,7 +92,8 @@ app.post("/", async (c) => {
       const jsonData = JSON.parse(jsonMatch[1]);
       if (jsonData.nodes && Array.isArray(jsonData.nodes)) {
         for (const n of jsonData.nodes) {
-          const childTypes = CHILD_TYPE_MAP[parentType] || [];
+          const allowedMap = getAllowedChildTypeMap(methodology);
+          const childTypes = allowedMap[parentType] || [];
           if (!childTypes.includes(n.type)) continue;
 
           const nodeId = uuid();
@@ -108,15 +105,16 @@ app.post("/", async (c) => {
             title: n.title,
             content: n.description || "",
             rationale_note: null,
+            conversation_id: convId,
             created_by: "ai",
             created_at: nodeNow,
             updated_at: nodeNow,
           });
 
-          // Link from conv to new node
+          // Link from parent node to new node
           await db.insert(schema.edges).values({
             id: uuid(),
-            from_node_id: convId,
+            from_node_id: targetNodeId,
             to_node_id: nodeId,
             link_type: "derives",
             created_at: nodeNow,
@@ -137,7 +135,7 @@ app.post("/", async (c) => {
 
   return c.json({
     response: aiResponse.response,
-    conv_id: convId,
+    conversation_id: convId,
     created_nodes: createdNodes,
   });
 });

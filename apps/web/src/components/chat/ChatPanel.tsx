@@ -20,9 +20,9 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
     sessionNodeId,
     sessionNodeInfo,
     sessionType,
-    convId,
+    conversationId,
     chatHistory,
-    setConvId,
+    setConversationId,
     addChatMessage,
     clearChat,
   } = useAppStore();
@@ -34,12 +34,12 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
         message,
         session_type: sessionType,
         node_id: sessionNodeId,
-        conv_id: convId,
+        conversation_id: conversationId,
         history: chatHistory,
       }),
     onSuccess: (data) => {
-      if (data.conv_id && !convId) {
-        setConvId(data.conv_id);
+      if (data.conversation_id && !conversationId) {
+        setConversationId(data.conversation_id);
       }
       addChatMessage({ role: "assistant", content: data.response });
       if (data.created_nodes?.length > 0) {

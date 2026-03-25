@@ -5,8 +5,7 @@ const app = new Hono();
 
 app.get("/:id/graph", async (c) => {
   const projectId = c.req.param("id");
-  const includeConv = c.req.query("include_conv") === "true";
-  const graph = await getProjectGraph(projectId, includeConv);
+  const graph = await getProjectGraph(projectId);
   return c.json(graph);
 });
 

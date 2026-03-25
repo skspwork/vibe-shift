@@ -4,11 +4,27 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiClient } from "./client.js";
+import { getChildTypeMap, getAllowedChildTypeMap, METHODOLOGY_GUIDANCE, METHODOLOGY_LABELS } from "@cddai/shared";
 
 const server = new McpServer({
   name: "CddAI",
   version: "0.0.1",
 });
+
+// Wrap tool handlers with error handling to prevent "No result received" errors
+function safeHandler<T>(fn: (args: T) => Promise<{ content: { type: "text"; text: string }[] }>) {
+  return async (args: T) => {
+    try {
+      return await fn(args);
+    } catch (err: any) {
+      const message = err?.message || String(err);
+      return {
+        content: [{ type: "text" as const, text: `エラーが発生しました: ${message}` }],
+        isError: true,
+      };
+    }
+  };
+}
 
 // ─── Resource: CddAI利用ガイド ───
 server.registerResource(
@@ -39,12 +55,12 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 ## 重要なワークフロー原則
 1. **ノードを作成する前に、必ずユーザーにヒアリングしてください**
 2. 提案内容をテキストで提示し、ユーザーの合意を得てからcreate_nodeを実行してください
-3. create_conversationで会話ログを残し、create_nodeのconv_idに紐付けてください
+3. create_conversationで会話を作成し、create_nodeのconversation_idに紐付けてください
 4. 一度に大量のノードを作成せず、段階的にユーザーと確認しながら進めてください
 
 ## 会話ログの記録方法
-1. create_conversationで会話ノードを作成（user_message, ai_messageを保存）
-2. create_nodeのconv_idに会話ノードIDを指定（生成経緯がWeb UIに表示される）
+1. create_conversationで会話を作成（user_message, ai_messageを保存）
+2. create_nodeのconversation_idに会話IDを指定（生成経緯がWeb UIに表示される）
 `,
       },
     ],
@@ -64,11 +80,16 @@ server.registerPrompt(
   async ({ project_id }) => {
     // Fetch project info and graph for context
     const project = await apiClient.getProject(project_id);
-    const graph = await apiClient.getProjectGraph(project_id, false);
+    const graph = await apiClient.getProjectGraph(project_id);
+    const methodology = project.methodology || "strict";
+    const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
 
     const existingNodes = graph.nodes
-      ?.map((n: any) => `- [${n.type}] ${n.title}`)
+      ?.map((n: any) => `- [${n.type}] ${n.title} (id: ${n.id})`)
       .join("\n") || "（まだノードがありません）";
+
+    const overviewNode = graph.nodes?.find((n: any) => n.type === "overview");
+    const overviewId = overviewNode?.id || "（不明）";
 
     return {
       messages: [
@@ -81,9 +102,16 @@ server.registerPrompt(
 ## プロジェクト情報
 - プロジェクト名: ${project.name}
 - 目的: ${project.purpose}
+- 開発手法: ${methodology}
 - プロジェクトID: ${project_id}
 
-## 既存ノード
+## 開発手法のガイダンス
+${guidance}
+
+## overviewノードID
+${overviewId}
+
+## 既存ノード（IDはcreate_nodeのparent_idに使用）
 ${existingNodes}
 
 ## ワークフロー（必ずこの順序で進めてください）
@@ -99,17 +127,24 @@ ${existingNodes}
 - 例: 「以下の要求ノードを作成してよろしいですか？\n\nタイトル: ○○\n内容: ○○」
 - ユーザーの修正要望があれば反映してください
 - ユーザーが「OK」「はい」「作成して」など明確に承認するまで次に進まないでください
+${methodology === "mvp" ? "\n- MVP手法のため、要求が固まったらすぐにタスクノードの作成を提案してください。要件・仕様・設計は後から追加できます。" : ""}
 
 ### Phase 3: 登録
 - ユーザーの承認を得たら、以下の手順でノードを作成してください:
-  1. create_conversationで会話ログを作成（ヒアリング内容を要約）
-  2. create_nodeでノードを作成（conv_idを指定して経緯を紐付け）
-- 作成完了後、次のステップ（要件の深掘りなど）を提案してください
+  1. create_conversationで会話を作成（project_idを指定）
+  2. create_nodeでノードを作成（conversation_idを指定して経緯を紐付け）
+- 作成完了後、次のステップを提案してください
+
+## parent_idの指定ルール（重要）
+- **needノード作成時**: parent_idにはoverviewノードID（${overviewId}）を指定してください
+- **reqノード作成時**: parent_idには親となるneedノードのIDを指定してください
+- **spec作成時**: 親のreqのID、**design作成時**: 親のspecのID、**task作成時**: 親のdesignまたはneedのID
+- **絶対にすべてのノードをoverviewに紐づけないでください。正しい親子関係を守ってください。**
 
 ## 重要な注意事項
 - ユーザーの明確な承認なしにcreate_nodeを呼ばないでください
 - 一度に複数のノードを提案する場合も、1つずつ確認を取ってください
-- 不明な点があれば推測せず、必ず質問してください`,
+- 不明な点があれば推測せず質問してください`,
           },
         },
       ],
@@ -131,15 +166,11 @@ server.registerPrompt(
   async ({ project_id, node_id }) => {
     const node = await apiClient.getNode(node_id);
     const context = await apiClient.getNodeContext(node_id);
+    const project = await apiClient.getProject(project_id);
+    const methodology = project.methodology || "strict";
+    const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
 
-    const childTypeMap: Record<string, string[]> = {
-      overview: ["need"],
-      need: ["req"],
-      req: ["spec"],
-      spec: ["design"],
-      design: ["task"],
-      task: ["code", "test"],
-    };
+    const childTypeMap = getChildTypeMap(methodology);
     const childTypes = childTypeMap[node.type] || [];
     const childTypeLabels: Record<string, string> = {
       need: "要求", req: "要件", spec: "仕様",
@@ -160,11 +191,15 @@ server.registerPrompt(
 - 内容: ${node.content}
 - ノードID: ${node_id}
 - プロジェクトID: ${project_id}
+- 開発手法: ${methodology}
+
+## 開発手法のガイダンス
+${guidance}
 
 ## 上流コンテキスト
 ${context.context}
 
-## 作成可能な子ノード種別
+## 推奨する子ノード種別
 ${childTypes.map((t) => `- ${t}（${childTypeLabels[t] || t}）`).join("\n")}
 
 ## ワークフロー（必ずこの順序で進めてください）
@@ -177,10 +212,15 @@ ${childTypes.map((t) => `- ${t}（${childTypeLabels[t] || t}）`).join("\n")}
 ### Phase 2: 提案
 - ヒアリング結果を踏まえ、作成する子ノードをテキストで提案してください
 - ユーザーの承認を待ってください
+${methodology === "mvp" ? "- MVP手法のため、素早くタスクノードを提案してください。詳細な仕様や設計は後から追加できます。" : ""}
 
 ### Phase 3: 登録
 - 承認後にcreate_conversation→create_nodeの順で作成してください
-- conv_idを必ず指定して経緯を紐付けてください
+- conversation_idを必ず指定して経緯を紐付けてください
+
+## parent_idの指定ルール（重要）
+- create_nodeのparent_idには、**この対象ノードのID（${node_id}）** を指定してください
+- **overviewノードのIDやプロジェクトIDを parent_id に使わないでください**
 
 ## 重要な注意事項
 - ユーザーの明確な承認なしにcreate_nodeを呼ばないでください
@@ -197,9 +237,9 @@ server.registerTool(
   "create_conversation",
   {
     description:
-      "会話(conv)ノードを作成し、指定した親ノードにリンクする。ノード作成前にまずこのツールでconvを作成し、返却されたconv IDをcreate_nodeのconv_idに渡すことで生成経緯が記録される。user_messageとai_messageを指定すると会話ログとして保存される。【注意】ユーザーとのヒアリング・合意形成が完了してから呼び出すこと。",
+      "会話を作成する。ノード作成前にまずこのツールで会話を作成し、返却されたconversation IDをcreate_nodeのconversation_idに渡すことで生成経緯が記録される。user_messageとai_messageを指定すると会話ログとして保存される。【注意】ユーザーとのヒアリング・合意形成が完了してから呼び出すこと。",
     annotations: {
-      title: "会話ノード作成",
+      title: "会話作成",
       destructiveHint: false,
       readOnlyHint: false,
       idempotentHint: false,
@@ -207,34 +247,29 @@ server.registerTool(
     },
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
-      parent_id: z.string().uuid().describe("親ノードID"),
-      summary: z.string().describe("会話の要約（convノードのタイトルになる）"),
+      summary: z.string().describe("会話の要約（会話のタイトルになる）"),
       user_message: z.string().optional().describe("ユーザーの発言（会話ログとして保存）"),
       ai_message: z.string().optional().describe("AIの応答（会話ログとして保存）"),
     },
   },
-  async ({ project_id, parent_id, summary, user_message, ai_message }) => {
-    const node = await apiClient.createNode({
+  safeHandler(async ({ project_id, summary, user_message, ai_message }) => {
+    const conversation = await apiClient.createConversation({
       project_id,
-      type: "conv",
       title: summary,
-      content: "",
-      parent_id,
-      created_by: "ai",
     });
 
     // Save conversation messages if provided
     if (user_message) {
-      await apiClient.addConvMessage(node.id, "user", user_message);
+      await apiClient.addConvMessage(conversation.id, "user", user_message);
     }
     if (ai_message) {
-      await apiClient.addConvMessage(node.id, "assistant", ai_message);
+      await apiClient.addConvMessage(conversation.id, "assistant", ai_message);
     }
 
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) }],
+      content: [{ type: "text" as const, text: JSON.stringify(conversation, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 2: create_node ───
@@ -242,7 +277,7 @@ server.registerTool(
   "create_node",
   {
     description:
-      "ノードを作成し、親ノードにリンクする。種別: need, req, spec, design, task, code, test。conv_idを指定すると、そのconvの子としてリンクされ、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
+      "ノードを作成し、親ノードにリンクする。種別: need, req, spec, design, task, code, test。conversation_idを指定すると、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
     annotations: {
       title: "ノード作成",
       destructiveHint: false,
@@ -258,29 +293,29 @@ server.registerTool(
       title: z.string().describe("タイトル（10文字程度）"),
       content: z.string().describe("詳細内容"),
       parent_id: z.string().uuid().describe("親ノードID（グラフ上の親）"),
-      conv_id: z
+      conversation_id: z
         .string()
         .uuid()
         .optional()
-        .describe("会話ノードID（create_conversationで作成したconv IDを指定すると生成経緯として紐付く）"),
+        .describe("会話ID（create_conversationで作成したIDを指定すると生成経緯として紐付く）"),
       rationale_note: z.string().optional().describe("経緯メモ（任意）"),
     },
   },
-  async ({ project_id, type, title, content, parent_id, conv_id, rationale_note }) => {
+  safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, rationale_note }) => {
     const node = await apiClient.createNode({
       project_id,
       type,
       title,
       content,
       parent_id,
-      conv_id,
+      conversation_id,
       rationale_note,
       created_by: "ai",
     });
     return {
       content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 3: update_node ───
@@ -302,7 +337,7 @@ server.registerTool(
       rationale_note: z.string().optional().describe("新しい経緯メモ"),
     },
   },
-  async ({ node_id, title, content, rationale_note }) => {
+  safeHandler(async ({ node_id, title, content, rationale_note }) => {
     const updates: Record<string, string> = {};
     if (title !== undefined) updates.title = title;
     if (content !== undefined) updates.content = content;
@@ -312,7 +347,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 4: delete_node ───
@@ -332,12 +367,12 @@ server.registerTool(
       node_id: z.string().uuid().describe("削除対象のノードID"),
     },
   },
-  async ({ node_id }) => {
+  safeHandler(async ({ node_id }) => {
     const result = await apiClient.deleteNode(node_id);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 5: link_nodes ───
@@ -361,7 +396,7 @@ server.registerTool(
         .describe("リンク種別: derives(派生), references(参照), tests(テスト)"),
     },
   },
-  async ({ from_id, to_id, link_type }) => {
+  safeHandler(async ({ from_id, to_id, link_type }) => {
     const edge = await apiClient.createEdge({
       from_node_id: from_id,
       to_node_id: to_id,
@@ -370,10 +405,69 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: JSON.stringify(edge, null, 2) }],
     };
-  }
+  })
 );
 
-// ─── Tool 6: get_trace ───
+// ─── Tool 6: delete_edge ───
+server.registerTool(
+  "delete_edge",
+  {
+    description:
+      "ノード間のエッジ（リンク）を削除する。誤ったparent_id指定で作られた不正なリンクの修正に使用。エッジIDはget_project_graphやlist_edgesで確認できる。【注意】削除は不可逆。ユーザーの承認を得てから実行すること。",
+    annotations: {
+      title: "エッジ削除",
+      destructiveHint: true,
+      readOnlyHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    inputSchema: {
+      edge_id: z.string().uuid().describe("削除対象のエッジID"),
+    },
+  },
+  safeHandler(async ({ edge_id }) => {
+    const result = await apiClient.deleteEdge(edge_id);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  })
+);
+
+// ─── Tool 7: list_edges ───
+server.registerTool(
+  "list_edges",
+  {
+    description:
+      "指定ノードに接続されているエッジ一覧を取得する。不正なリンクの特定やdelete_edgeで削除するエッジIDの確認に使用。",
+    annotations: {
+      title: "エッジ一覧",
+      readOnlyHint: true,
+    },
+    inputSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+      node_id: z.string().uuid().describe("対象ノードID"),
+    },
+  },
+  safeHandler(async ({ project_id, node_id }) => {
+    const graph = await apiClient.getProjectGraph(project_id);
+    const edges = graph.edges.filter(
+      (e: any) => e.from_node_id === node_id || e.to_node_id === node_id
+    );
+    // Enrich with node titles for readability
+    const nodeMap = new Map<string, any>(graph.nodes.map((n: any) => [n.id, n]));
+    const enriched = edges.map((e: any) => ({
+      edge_id: e.id,
+      from: { id: e.from_node_id, type: nodeMap.get(e.from_node_id)?.type, title: nodeMap.get(e.from_node_id)?.title },
+      to: { id: e.to_node_id, type: nodeMap.get(e.to_node_id)?.type, title: nodeMap.get(e.to_node_id)?.title },
+      link_type: e.link_type,
+    }));
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(enriched, null, 2) }],
+    };
+  })
+);
+
+// ─── Tool 8: get_trace ───
 server.registerTool(
   "get_trace",
   {
@@ -386,12 +480,12 @@ server.registerTool(
         .describe("トレース方向"),
     },
   },
-  async ({ node_id, direction }) => {
+  safeHandler(async ({ node_id, direction }) => {
     const trace = await apiClient.getNodeTrace(node_id, direction);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(trace, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 7: get_node_context ───
@@ -404,12 +498,12 @@ server.registerTool(
       node_id: z.string().uuid().describe("対象ノードID"),
     },
   },
-  async ({ node_id }) => {
+  safeHandler(async ({ node_id }) => {
     const result = await apiClient.getNodeContext(node_id);
     return {
       content: [{ type: "text" as const, text: result.context }],
     };
-  }
+  })
 );
 
 // ─── Tool 8: get_project_graph ───
@@ -419,18 +513,14 @@ server.registerTool(
     description: "プロジェクトのグラフ全体（ノードとエッジ）を取得する",
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
-      include_conv: z
-        .boolean()
-        .default(false)
-        .describe("convノードを含めるか（デフォルト: false）"),
     },
   },
-  async ({ project_id, include_conv }) => {
-    const graph = await apiClient.getProjectGraph(project_id, include_conv);
+  safeHandler(async ({ project_id }) => {
+    const graph = await apiClient.getProjectGraph(project_id);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(graph, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 9: search_nodes ───
@@ -449,12 +539,12 @@ server.registerTool(
         .describe("フィルタするノード種別の配列（任意）"),
     },
   },
-  async ({ project_id, query, types }) => {
+  safeHandler(async ({ project_id, query, types }) => {
     const results = await apiClient.searchNodes(project_id, query, types);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 10: list_projects ───
@@ -468,7 +558,7 @@ server.registerTool(
     },
     inputSchema: {},
   },
-  async () => {
+  safeHandler(async () => {
     const projects = await apiClient.getProjects();
     const summary = projects.map((p: any) => ({
       id: p.id,
@@ -478,7 +568,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 11: list_tasks ───
@@ -495,8 +585,8 @@ server.registerTool(
       project_id: z.string().uuid().describe("プロジェクトID"),
     },
   },
-  async ({ project_id }) => {
-    const graph = await apiClient.getProjectGraph(project_id, false);
+  safeHandler(async ({ project_id }) => {
+    const graph = await apiClient.getProjectGraph(project_id);
     const tasks = graph.nodes.filter((n: any) => n.type === "task");
 
     // Build parent map from edges
@@ -523,7 +613,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
     };
-  }
+  })
 );
 
 // ─── Tool 12: get_task_brief ───
@@ -540,7 +630,7 @@ server.registerTool(
       task_id: z.string().uuid().describe("タスクノードID"),
     },
   },
-  async ({ task_id }) => {
+  safeHandler(async ({ task_id }) => {
     const task = await apiClient.getNode(task_id);
     if (task.type !== "task") {
       return {
@@ -643,7 +733,7 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: sections.join("\n") }],
     };
-  }
+  })
 );
 
 // ─── Prompt 3: implement_task ───
@@ -703,6 +793,157 @@ get_task_brief(task_id: "${task_id}") を呼び出して、タスクの全コン
 - Step 2でユーザーの承認を得てから実装に進むこと
 - 実装はget_task_briefで取得したコンテキストに忠実に行うこと
 - PRを作成したら必ずcodeノードとしてCddAIに登録すること`,
+          },
+        },
+      ],
+    };
+  }
+);
+
+// ─── Tool 14: create_project ───
+server.registerTool(
+  "create_project",
+  {
+    description:
+      "CddAIに新しいプロジェクトを作成する。overviewノードも自動生成される。返却されるproject_idとoverview_idを後続のノード作成に使用すること。",
+    annotations: {
+      title: "プロジェクト作成",
+      destructiveHint: false,
+      readOnlyHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    inputSchema: {
+      name: z.string().describe("システム名・プロジェクト名"),
+      purpose: z.string().describe("目的・背景"),
+      scope: z.string().optional().describe("スコープ（任意）"),
+      stakeholders: z.string().optional().describe("ステークホルダー（任意）"),
+      constraints: z.string().optional().describe("技術的制約（任意）"),
+      methodology: z.enum(["strict", "mvp"]).default("strict")
+        .describe("開発手法: strict（厳密・ウォーターフォール型）/ mvp（実装優先）"),
+      active_lanes: z
+        .array(z.enum(["need", "req", "spec", "design", "task", "code", "test"]))
+        .optional()
+        .describe("使用するレーン（省略時はmethodologyに応じたデフォルト）"),
+    },
+  },
+  safeHandler(async ({ name, purpose, scope, stakeholders, constraints, methodology, active_lanes }) => {
+    const defaultLanes: Record<string, string[]> = {
+      strict: ["need", "req", "spec", "design", "task"],
+      mvp: ["need", "task"],
+    };
+    const project = await apiClient.createProject({
+      name,
+      purpose,
+      scope: scope || "",
+      stakeholders: stakeholders || "",
+      constraints: constraints || "",
+      methodology,
+      active_lanes: active_lanes || defaultLanes[methodology] || defaultLanes.strict,
+    });
+    return {
+      content: [{
+        type: "text" as const,
+        text: `プロジェクトを作成しました。\n\n${JSON.stringify(project, null, 2)}\n\n` +
+          `project_id: ${project.id}\noverview_id: ${project.overview_id}\n` +
+          `needノード作成時のparent_idには overview_id を使用してください。`,
+      }],
+    };
+  })
+);
+
+// ─── Prompt 4: bootstrap_from_conversation ───
+server.registerPrompt(
+  "bootstrap_from_conversation",
+  {
+    description:
+      "現在の会話内容からCddAIプロジェクトを新規作成し、要求・要件ノードを自動抽出するワークフロー。普段の会話の途中で「これをプロジェクト化したい」と思ったときに使用。",
+    argsSchema: {
+      conversation_summary: z.string().describe("これまでの会話の要約や、プロジェクト化したい内容の説明"),
+      methodology: z.enum(["strict", "mvp"]).default("mvp")
+        .describe("開発手法: strict（厳密）/ mvp（実装優先、デフォルト）"),
+    },
+  },
+  async ({ conversation_summary, methodology }) => {
+    const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
+    const methodologyLabel = METHODOLOGY_LABELS[methodology] || methodology;
+    const childTypeMap = getChildTypeMap(methodology);
+    const allowedMap = getAllowedChildTypeMap(methodology);
+
+    return {
+      messages: [
+        {
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            text: `あなたはCddAIのプロジェクトブートストラップアシスタントです。
+ユーザーがこれまでの会話の中で議論した内容を、CddAIプロジェクトとして構造化してください。
+
+## 会話の要約
+${conversation_summary}
+
+## 選択された開発手法
+${methodologyLabel}
+
+## 開発手法のガイダンス
+${guidance}
+
+## ノード階層（推奨パス）
+${Object.entries(childTypeMap).filter(([, v]) => (v as string[]).length > 0).map(([k, v]) => `- ${k} → ${(v as string[]).join(", ")}`).join("\n")}
+
+## ノード階層（許容パス・手動補完用）
+${Object.entries(allowedMap).filter(([, v]) => (v as string[]).length > 0).map(([k, v]) => `- ${k} → ${(v as string[]).join(", ")}`).join("\n")}
+
+## ワークフロー（この順序で進めてください）
+
+### Step 1: プロジェクト情報の確認
+会話の要約から以下を抽出し、ユーザーに確認してください:
+- **システム名**: 簡潔なプロジェクト名
+- **目的・背景**: なぜこのプロジェクトが必要か
+- **スコープ**: 何を含み、何を含まないか
+- **ステークホルダー**: 誰が関わるか
+- **技術的制約**: 使用技術やリソースの制約
+
+ユーザーが「OK」「作成して」と承認するまで次に進まないでください。
+
+### Step 2: プロジェクト作成
+承認後、create_project ツールでプロジェクトを作成してください。
+返却される project_id と overview_id を控えてください。
+
+### Step 3: 要求（need）ノードの抽出
+会話の中で議論された要求・ニーズを need ノードとして抽出してください。
+- 各needを1つずつテキストで提案し、ユーザーの承認を得てから作成
+- create_conversation → create_node（conversation_idを指定）の順で作成
+- create_node の parent_id には **overview_id** を指定
+- 会話から明確に読み取れるものだけ抽出し、推測で追加しない
+
+### Step 4: 下位ノードの作成（${methodology === "mvp" ? "タスク優先" : "要件→仕様→設計→タスクの順"}）
+${methodology === "mvp"
+  ? `MVP手法のため、各needの下に直接taskノードを提案してください。
+- create_nodeのparent_idには **親needノードのID** を指定
+- 詳細な要件・仕様・設計はスキップし、まず動くものを作ることを優先
+- 後から req/spec/design を補完できることをユーザーに伝える`
+  : `各needから順番にreq→spec→design→taskを作成してください。
+- 各ノードのparent_idには直接の親ノードIDを指定（needのIDをreqのparent_idに、reqのIDをspecのparent_idに、等）
+- すべてのノードをoverviewに紐づけないでください`}
+- 各ノードは1つずつユーザーに提案し、承認を得てから作成
+
+### Step 5: 完了サマリー
+作成したプロジェクトとノード構成のサマリーを表示してください。
+Web UIでの確認URL: http://localhost:3000/projects/{project_id}
+
+## parent_idの指定ルール（重要）
+- **needノード**: parent_id = overview_id
+- **reqノード**: parent_id = 親needのID
+- **specノード**: parent_id = 親reqのID
+- **designノード**: parent_id = 親specのID
+- **taskノード**: parent_id = 親designのID（strictの場合）または親needのID（mvpの場合）
+- **絶対にすべてのノードをoverviewに紐づけないでください**
+
+## 重要な注意事項
+- ユーザーの承認なしにcreate_projectやcreate_nodeを呼ばないでください
+- 会話から読み取れる情報のみ使い、推測でノードを追加しないでください
+- 不明な点は質問してください`,
           },
         },
       ],

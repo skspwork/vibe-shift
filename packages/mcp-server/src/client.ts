@@ -16,10 +16,12 @@ export const apiClient = {
   // Projects
   getProjects: () => request<any[]>("/projects"),
   getProject: (id: string) => request<any>(`/projects/${id}`),
+  createProject: (data: any) =>
+    request<any>("/projects", { method: "POST", body: JSON.stringify(data) }),
 
   // Graph
-  getProjectGraph: (projectId: string, includeConv = false) =>
-    request<any>(`/projects/${projectId}/graph?include_conv=${includeConv}`),
+  getProjectGraph: (projectId: string) =>
+    request<any>(`/projects/${projectId}/graph`),
 
   // Nodes
   createNode: (data: any) =>
@@ -40,8 +42,12 @@ export const apiClient = {
   getNodeTrace: (id: string, direction = "both") =>
     request<any>(`/nodes/${id}/trace?direction=${direction}`),
   getNodeConv: (id: string) => request<any>(`/nodes/${id}/conv`),
-  addConvMessage: (convId: string, role: string, content: string) =>
-    request<any>(`/nodes/${convId}/messages`, {
+
+  // Conversations
+  createConversation: (data: { project_id: string; title: string }) =>
+    request<any>("/conversations", { method: "POST", body: JSON.stringify(data) }),
+  addConvMessage: (conversationId: string, role: string, content: string) =>
+    request<any>(`/conversations/${conversationId}/messages`, {
       method: "POST",
       body: JSON.stringify({ role, content }),
     }),
@@ -49,4 +55,6 @@ export const apiClient = {
   // Edges
   createEdge: (data: any) =>
     request<any>("/edges", { method: "POST", body: JSON.stringify(data) }),
+  deleteEdge: (id: string) =>
+    request<any>(`/edges/${id}`, { method: "DELETE" }),
 };

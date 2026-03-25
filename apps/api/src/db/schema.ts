@@ -4,6 +4,16 @@ export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   active_lanes: text("active_lanes").notNull(), // JSON array
+  methodology: text("methodology").notNull().default("strict"),
+  created_at: text("created_at").notNull(),
+});
+
+export const conversations = sqliteTable("conversations", {
+  id: text("id").primaryKey(),
+  project_id: text("project_id")
+    .notNull()
+    .references(() => projects.id),
+  title: text("title").notNull(),
   created_at: text("created_at").notNull(),
 });
 
@@ -16,6 +26,7 @@ export const nodes = sqliteTable("nodes", {
   title: text("title").notNull(),
   content: text("content").notNull().default(""),
   rationale_note: text("rationale_note"),
+  conversation_id: text("conversation_id").references(() => conversations.id),
   created_by: text("created_by").notNull().default("user"),
   created_at: text("created_at").notNull(),
   updated_at: text("updated_at").notNull(),
@@ -35,9 +46,9 @@ export const edges = sqliteTable("edges", {
 
 export const conv_messages = sqliteTable("conv_messages", {
   id: text("id").primaryKey(),
-  conv_node_id: text("conv_node_id")
+  conversation_id: text("conversation_id")
     .notNull()
-    .references(() => nodes.id),
+    .references(() => conversations.id),
   role: text("role").notNull(),
   content: text("content").notNull(),
   created_at: text("created_at").notNull(),

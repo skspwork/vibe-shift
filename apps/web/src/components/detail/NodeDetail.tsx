@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { NODE_LABELS, CHILD_TYPE_MAP } from "@cddai/shared";
+import { NODE_LABELS, getAllowedChildTypeMap } from "@cddai/shared";
 import { useAppStore } from "@/lib/store";
 import { Pencil, Plus, MessageCircle, X, Check, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -56,9 +56,17 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     },
   });
 
+  const { data: project } = useQuery({
+    queryKey: ["project", projectId],
+    queryFn: () => api.getProject(projectId),
+  });
+
+  const methodology = project?.methodology || "strict";
+
   if (!node) return <div className="p-4 text-gray-400">読み込み中...</div>;
 
-  const childTypes = CHILD_TYPE_MAP[node.type] || [];
+  const allowedMap = getAllowedChildTypeMap(methodology);
+  const childTypes = allowedMap[node.type] || [];
   const canCreateChild = childTypes.length > 0;
 
   const startEdit = () => {
@@ -84,6 +92,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
       <NodeCreateForm
         parentNode={node}
         projectId={projectId}
+        methodology={methodology}
         onCreated={() => {
           setShowCreateChild(false);
           onUpdate();

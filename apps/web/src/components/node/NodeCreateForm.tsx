@@ -3,18 +3,20 @@
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { CHILD_TYPE_MAP, NODE_LABELS } from "@cddai/shared";
+import { getAllowedChildTypeMap, NODE_LABELS } from "@cddai/shared";
 import { X } from "lucide-react";
 
 interface Props {
   parentNode: any;
   projectId: string;
+  methodology?: string;
   onCreated: () => void;
   onCancel: () => void;
 }
 
-export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: Props) {
-  const childTypes = CHILD_TYPE_MAP[parentNode.type] || [];
+export function NodeCreateForm({ parentNode, projectId, methodology = "strict", onCreated, onCancel }: Props) {
+  const allowedMap = getAllowedChildTypeMap(methodology);
+  const childTypes = allowedMap[parentNode.type] || [];
   const queryClient = useQueryClient();
 
   const { register, handleSubmit, formState: { errors } } = useForm({

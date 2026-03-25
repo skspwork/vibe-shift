@@ -18,14 +18,14 @@ export async function getNodeContext(nodeId: string): Promise<string> {
     }
   }
 
-  // Walk up to collect ancestor chain (skip conv nodes)
+  // Walk up to collect ancestor chain
   const ancestors: typeof allNodes = [];
   let currentId: string | undefined = nodeId;
   while (currentId) {
     const parentId = parentMap.get(currentId);
     if (parentId) {
       const parent = nodeMap.get(parentId);
-      if (parent && parent.type !== "conv") {
+      if (parent) {
         ancestors.unshift(parent);
       }
       currentId = parentId;

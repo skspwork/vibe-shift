@@ -7,6 +7,7 @@ import nodes from "./routes/nodes.js";
 import edges from "./routes/edges.js";
 import graph from "./routes/graph.js";
 import chat from "./routes/chat.js";
+import conversations from "./routes/conversations.js";
 import { db, schema } from "./db/index.js";
 import { sql } from "drizzle-orm";
 import Database from "better-sqlite3";
@@ -24,6 +25,14 @@ function initDb() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       active_lanes TEXT NOT NULL,
+      methodology TEXT NOT NULL DEFAULT 'strict',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id),
+      title TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
@@ -34,6 +43,7 @@ function initDb() {
       title TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
       rationale_note TEXT,
+      conversation_id TEXT REFERENCES conversations(id),
       created_by TEXT NOT NULL DEFAULT 'user',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -49,12 +59,13 @@ function initDb() {
 
     CREATE TABLE IF NOT EXISTS conv_messages (
       id TEXT PRIMARY KEY,
-      conv_node_id TEXT NOT NULL REFERENCES nodes(id),
+      conversation_id TEXT NOT NULL REFERENCES conversations(id),
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
   `);
+
   sqlite.close();
 }
 
@@ -69,6 +80,7 @@ app.route("/nodes", nodes);
 app.route("/edges", edges);
 app.route("/projects", graph);
 app.route("/chat", chat);
+app.route("/conversations", conversations);
 
 app.get("/", (c) => c.json({ status: "ok", service: "CddAI API" }));
 

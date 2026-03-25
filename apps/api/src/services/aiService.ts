@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { CHILD_TYPE_MAP, NODE_LABELS } from "@cddai/shared";
+import { getChildTypeMap, NODE_LABELS, METHODOLOGY_GUIDANCE } from "@cddai/shared";
 
 const anthropic = new Anthropic();
 
@@ -7,16 +7,22 @@ interface ChatParams {
   context: string;
   message: string;
   parentType: string;
+  methodology?: string;
   history?: { role: "user" | "assistant"; content: string }[];
 }
 
 export async function chat(params: ChatParams) {
-  const { context, message, parentType, history = [] } = params;
-  const childTypes = CHILD_TYPE_MAP[parentType] || [];
+  const { context, message, parentType, methodology = "strict", history = [] } = params;
+  const childTypeMap = getChildTypeMap(methodology);
+  const childTypes = childTypeMap[parentType] || [];
   const childLabels = childTypes.map((t) => `${NODE_LABELS[t]}(${t})`).join("、");
+  const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
 
   const systemPrompt = `あなたはAIドリブン開発トレーサビリティ管理システム「CddAI」のアシスタントです。
 ユーザーとの対話を通じて、開発プロジェクトの要求・要件・仕様・設計・タスクのノードを作成・整理します。
+
+【開発手法】
+${guidance}
 
 以下のコンテキストに基づいて対話してください：
 

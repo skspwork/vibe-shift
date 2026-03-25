@@ -61,6 +61,10 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 ## 会話ログの記録方法
 1. create_conversationで会話を作成（user_message, ai_messageを保存）
 2. create_nodeのconversation_idに会話IDを指定（生成経緯がWeb UIに表示される）
+
+## コンテンツのフォーマット
+- ノードのcontent、rationale_note、プロジェクトのpurpose/scope/constraints等、すべてのテキストはマークダウン形式で記述してください
+- 見出し（##）、箇条書き（-）、番号付きリスト（1.）、コードブロック（\`\`\`）等を活用し、構造的に記述してください
 `,
       },
     ],
@@ -123,8 +127,9 @@ ${existingNodes}
 - この段階では絶対にcreate_nodeやcreate_conversationを呼ばないでください
 
 ### Phase 2: 提案
-- ヒアリング内容をもとに、作成するノードの内容をテキストで提案してください
+- ヒアリング内容をもとに、作成するノードの内容をマークダウン形式で提案してください
 - 例: 「以下の要求ノードを作成してよろしいですか？\n\nタイトル: ○○\n内容: ○○」
+- ノードのcontentは必ずマークダウン形式で記述してください（見出し、箇条書き、コードブロック等を活用）
 - ユーザーの修正要望があれば反映してください
 - ユーザーが「OK」「はい」「作成して」など明確に承認するまで次に進まないでください
 ${methodology === "mvp" ? "\n- MVP手法のため、要求が固まったらすぐにタスクノードの作成を提案してください。要件・仕様・設計は後から追加できます。" : ""}
@@ -210,7 +215,8 @@ ${childTypes.map((t) => `- ${t}（${childTypeLabels[t] || t}）`).join("\n")}
 - この段階ではcreate_nodeを呼ばないでください
 
 ### Phase 2: 提案
-- ヒアリング結果を踏まえ、作成する子ノードをテキストで提案してください
+- ヒアリング結果を踏まえ、作成する子ノードをマークダウン形式で提案してください
+- ノードのcontentは必ずマークダウン形式で記述してください（見出し、箇条書き、コードブロック等を活用）
 - ユーザーの承認を待ってください
 ${methodology === "mvp" ? "- MVP手法のため、素早くタスクノードを提案してください。詳細な仕様や設計は後から追加できます。" : ""}
 
@@ -291,14 +297,14 @@ server.registerTool(
         .enum(["need", "req", "spec", "design", "task", "code", "test"])
         .describe("ノード種別"),
       title: z.string().describe("タイトル（10文字程度）"),
-      content: z.string().describe("詳細内容"),
+      content: z.string().describe("詳細内容（マークダウン形式で記述）"),
       parent_id: z.string().uuid().describe("親ノードID（グラフ上の親）"),
       conversation_id: z
         .string()
         .uuid()
         .optional()
         .describe("会話ID（create_conversationで作成したIDを指定すると生成経緯として紐付く）"),
-      rationale_note: z.string().optional().describe("経緯メモ（任意）"),
+      rationale_note: z.string().optional().describe("経緯メモ（任意、マークダウン形式）"),
     },
   },
   safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, rationale_note }) => {

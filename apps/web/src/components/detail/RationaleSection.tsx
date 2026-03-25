@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { ConvLogViewer } from "./ConvLogViewer";
+import { Markdown } from "../ui/Markdown";
 
 interface Props {
   node: any;
@@ -116,9 +117,9 @@ export function RationaleSection({ node, convData, onUpdate }: Props) {
             </div>
           ) : node.rationale_note ? (
             <div>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">
+              <Markdown className="text-sm text-gray-600">
                 {node.rationale_note}
-              </p>
+              </Markdown>
               <button
                 onClick={() => setEditingNote(true)}
                 className="text-xs text-blue-500 mt-1 hover:underline"

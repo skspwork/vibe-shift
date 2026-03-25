@@ -8,6 +8,7 @@ import { Pencil, Plus, MessageCircle, X, Check, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";
 import { NodeCreateForm } from "../node/NodeCreateForm";
+import { Markdown } from "../ui/Markdown";
 
 interface Props {
   nodeId: string;
@@ -156,9 +157,9 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
       ) : (
         <>
           <h2 className="font-bold text-lg">{node.title}</h2>
-          <p className="text-sm text-gray-600 whitespace-pre-wrap">
+          <Markdown className="text-sm text-gray-600">
             {node.content}
-          </p>
+          </Markdown>
         </>
       )}
 

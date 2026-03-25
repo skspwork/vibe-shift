@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MessageCircle, ChevronDown, ChevronUp, User, Bot } from "lucide-react";
+import { Markdown } from "../ui/Markdown";
 
 interface ConvMessage {
   role: "user" | "assistant";
@@ -82,9 +83,9 @@ export function ConvLogViewer({ conversation, messages }: Props) {
                   {msg.role === "user" ? "ユーザー" : "AI"}
                 </span>
               </div>
-              <div className="whitespace-pre-wrap text-gray-600 leading-relaxed pl-5">
+              <Markdown className="text-gray-600 leading-relaxed pl-5">
                 {msg.content}
-              </div>
+              </Markdown>
             </div>
           ))}
         </div>

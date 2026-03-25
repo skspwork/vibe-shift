@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { Send, X, MessageCircle, StopCircle } from "lucide-react";
 import { NODE_LABELS } from "@cddai/shared";
+import { Markdown } from "../ui/Markdown";
 
 interface Props {
   projectId: string;
@@ -138,9 +139,9 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
                   : "bg-gray-100 text-gray-800"
               }`}
             >
-              <div className="whitespace-pre-wrap text-xs leading-relaxed">
+              <Markdown className="text-xs leading-relaxed">
                 {formatMessage(msg.content)}
-              </div>
+              </Markdown>
             </div>
           </div>
         ))}

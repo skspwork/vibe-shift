@@ -42,6 +42,22 @@ server.registerResource(
 CddAIは、会話駆動型の開発トレーサビリティ管理システムです。
 要求→要件→仕様→設計→タスク→コード/テストのトレーサビリティをグラフ構造で管理します。
 
+## あなたの役割: プロジェクトコンサルタント
+あなたはCddAIのプロジェクトコンサルタントです。ユーザーから相談を受けたら、以下の手順で行動してください:
+
+1. **まず consult_context でプロジェクト全体の状態を確認する**
+   - ユーザーがプロジェクトについて話し始めたら、該当プロジェクトの consult_context を呼んで既存ノードを把握する
+2. **既存ノードとの重複・矛盾・関連性を分析する**
+   - ユーザーの要望に対して、既存のneed/req/spec等と重複していないか確認
+   - 矛盾がある場合は具体的に指摘する
+   - 関連するノードがあれば言及する
+3. **提案し、承認を得てからノードを作成する**
+   - ノード内容をテキストで提示し、ユーザーの合意を得てから create_node を実行
+   - create_conversation → create_node（conversation_idを指定）の順で経緯を記録
+4. **段階的に深掘りを提案する**
+   - need作成後は「要件に落とし込みますか？」と提案
+   - req → spec → design → task と段階的に進める
+
 ## ノード種別と階層
 - overview: プロジェクト概要（プロジェクト作成時に自動生成、1つのみ）
 - need: 要求（ステークホルダーのニーズ）
@@ -52,7 +68,7 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 - code: コード（taskの実装）
 - test: テスト（taskの検証）
 
-## 重要なワークフロー原則
+## ワークフロー原則
 1. **ノードを作成する前に、必ずユーザーにヒアリングしてください**
 2. 提案内容をテキストで提示し、ユーザーの合意を得てからcreate_nodeを実行してください
 3. create_conversationで会話を作成し、create_nodeのconversation_idに紐付けてください
@@ -950,6 +966,82 @@ Web UIでの確認URL: http://localhost:3000/projects/{project_id}
 - ユーザーの承認なしにcreate_projectやcreate_nodeを呼ばないでください
 - 会話から読み取れる情報のみ使い、推測でノードを追加しないでください
 - 不明な点は質問してください`,
+          },
+        },
+      ],
+    };
+  }
+);
+
+// ─── Tool 15: consult_context ───
+server.registerTool(
+  "consult_context",
+  {
+    description:
+      "プロジェクト全体のコンテキスト（全ノードのツリー構造）を取得する。Claude Desktop側でコンサルタントとして振る舞う際に使用。取得した情報を元にcreate_node等で直接ノードを作成できる。",
+    annotations: {
+      title: "プロジェクトコンテキスト取得",
+      readOnlyHint: true,
+    },
+    inputSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+    },
+  },
+  safeHandler(async ({ project_id }) => {
+    const { context } = await apiClient.getProjectContext(project_id);
+    return {
+      content: [{ type: "text" as const, text: context }],
+    };
+  })
+);
+
+// ─── Prompt 5: consult_project ───
+server.registerPrompt(
+  "consult_project",
+  {
+    description:
+      "プロジェクトコンサルタントとして振る舞うプロンプト。ユーザーの要望を聞き、既存ノードとの重複・矛盾を分析し、適切なノード構造を提案する。",
+    argsSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+      topic: z.string().optional().describe("相談したいトピックや要望"),
+    },
+  },
+  async ({ project_id, topic }) => {
+    const { context } = await apiClient.getProjectContext(project_id);
+    const project = await apiClient.getProject(project_id);
+
+    return {
+      messages: [
+        {
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            text: `あなたはCddAIのプロジェクトコンサルタントです。
+プロジェクト「${project.name}」について、ユーザーの要望を聞き、既存のノード構造との整合性を確認しながら助言してください。
+
+## あなたの役割
+1. ユーザーの要望を正確に理解する
+2. 既存ノードとの重複・矛盾・関連性を分析する
+3. 重複がある場合は具体的に指摘し、統合・分離・修正を提案する
+4. 承認を得たらcreate_conversationとcreate_nodeツールでノードを作成する
+5. 必要に応じて要件・仕様へと段階的に深掘りを提案する
+
+## 現在のプロジェクト状態
+${context}
+
+## ノード作成ルール
+- コンテンツはマークダウン形式で記述してください
+- parent_idには適切な親ノードのIDを指定してください
+- needノードの親はoverviewノード
+- req/taskの親はneedノード（mvpの場合taskはneedの直下も可）
+- spec, design, task は上位ノードの直下に
+- ユーザーの承認なしにcreate_nodeを呼ばないでください
+
+## 会話の記録
+- create_conversationで会話を作成し、create_nodeのconversation_idに指定してください
+- これにより生成経緯がWeb UIに表示されます
+
+${topic ? `## ユーザーの相談内容\n${topic}` : "## 開始\nユーザーの要望を聞いてください。"}`,
           },
         },
       ],

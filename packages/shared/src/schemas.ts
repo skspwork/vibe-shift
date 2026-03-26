@@ -152,7 +152,7 @@ export const CreateEdgeSchema = z.object({
 export const ChatRequestSchema = z.object({
   project_id: z.string().uuid(),
   message: z.string().min(1),
-  session_type: z.enum(["overview", "node_session"]),
+  session_type: z.enum(["overview", "node_session", "consult"]),
   node_id: z.string().uuid().optional(),
   conversation_id: z.string().uuid().optional(),
   history: z

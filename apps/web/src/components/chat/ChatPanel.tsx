@@ -98,7 +98,7 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
           <div className="flex items-center gap-2">
             <MessageCircle size={14} className="text-gray-400" />
             <span className="text-xs text-gray-500">
-              {chatHistory.length > 0 ? "overview セッション" : "新規会話"}
+              {chatHistory.length > 0 ? "コンサルタント" : "新規会話"}
             </span>
             {chatHistory.length > 0 && (
               <button
@@ -121,7 +121,7 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
             <p>
               {isNodeSession
                 ? "このノードについてAIと対話を開始してください"
-                : "メッセージを入力してAIと会話を開始"}
+                : "要望や質問を入力してコンサルタントと会話を開始"}
             </p>
           </div>
         )}
@@ -174,7 +174,7 @@ export function ChatPanel({ projectId, onNodesCreated }: Props) {
             placeholder={
               isNodeSession
                 ? `${NODE_LABELS[sessionNodeInfo?.type || ""] || "ノード"}について質問...`
-                : "メッセージを入力..."
+                : "要望や質問を入力..."
             }
             className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             disabled={chatMutation.isPending}

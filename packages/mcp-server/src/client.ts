@@ -52,6 +52,14 @@ export const apiClient = {
       body: JSON.stringify({ role, content }),
     }),
 
+  // Project context
+  getProjectContext: (projectId: string) =>
+    request<{ context: string }>(`/projects/${projectId}/context`),
+
+  // Chat
+  chat: (data: { project_id: string; message: string; session_type: string; node_id?: string; conversation_id?: string; history?: { role: string; content: string }[] }) =>
+    request<any>("/chat", { method: "POST", body: JSON.stringify(data) }),
+
   // Edges
   createEdge: (data: any) =>
     request<any>("/edges", { method: "POST", body: JSON.stringify(data) }),

@@ -65,6 +65,73 @@ export async function getNodeContext(nodeId: string): Promise<string> {
   return context;
 }
 
+export async function getProjectContext(projectId: string): Promise<string> {
+  const allNodes = await db
+    .select()
+    .from(schema.nodes)
+    .where(eq(schema.nodes.project_id, projectId));
+  const allEdges = await db.select().from(schema.edges);
+
+  // Filter edges to only those within this project's nodes
+  const nodeIds = new Set(allNodes.map((n) => n.id));
+  const projectEdges = allEdges.filter(
+    (e) => nodeIds.has(e.from_node_id) && nodeIds.has(e.to_node_id) && e.link_type === "derives"
+  );
+
+  const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+
+  // Build children map (parent -> children[])
+  const childrenMap = new Map<string, string[]>();
+  for (const edge of projectEdges) {
+    const children = childrenMap.get(edge.from_node_id) || [];
+    children.push(edge.to_node_id);
+    childrenMap.set(edge.from_node_id, children);
+  }
+
+  const overviewNode = allNodes.find((n) => n.type === "overview");
+
+  let context = "";
+  if (overviewNode) {
+    context += `[プロジェクト概要]\n  名前: ${overviewNode.title}\n  内容: ${overviewNode.content}\n\n`;
+  }
+
+  // Build tree recursively
+  const nonOverviewNodes = allNodes.filter((n) => n.type !== "overview");
+  if (nonOverviewNodes.length === 0) {
+    context += "[既存ノード]\n  （なし）\n";
+    return context;
+  }
+
+  context += "[既存ノード一覧]\n";
+
+  function renderTree(nodeId: string, indent: number) {
+    const node = nodeMap.get(nodeId);
+    if (!node || node.type === "overview") return;
+    const prefix = "  ".repeat(indent);
+    const contentPreview = node.content.length > 100
+      ? node.content.substring(0, 100) + "..."
+      : node.content;
+    context += `${prefix}[${node.type}] ${node.title} (id: ${node.id})\n`;
+    if (contentPreview) {
+      context += `${prefix}  内容: ${contentPreview}\n`;
+    }
+    const children = childrenMap.get(nodeId) || [];
+    for (const childId of children) {
+      renderTree(childId, indent + 1);
+    }
+  }
+
+  // Start from overview's children (top-level needs)
+  if (overviewNode) {
+    const topLevel = childrenMap.get(overviewNode.id) || [];
+    for (const childId of topLevel) {
+      renderTree(childId, 1);
+    }
+  }
+
+  return context;
+}
+
 export async function getNodeTrace(nodeId: string, direction: "upstream" | "downstream" | "both" = "both") {
   const allNodes = await db.select().from(schema.nodes);
   const allEdges = await db.select().from(schema.edges);

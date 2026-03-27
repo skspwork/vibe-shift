@@ -9,24 +9,26 @@ import { X } from "lucide-react";
 interface Props {
   parentNode: any;
   projectId: string;
-  methodology?: string;
   onCreated: () => void;
   onCancel: () => void;
 }
 
-export function NodeCreateForm({ parentNode, projectId, methodology = "strict", onCreated, onCancel }: Props) {
-  const allowedMap = getAllowedChildTypeMap(methodology);
+export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: Props) {
+  const allowedMap = getAllowedChildTypeMap();
   const childTypes = allowedMap[parentNode.type] || [];
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     defaultValues: {
       type: childTypes[0] || "need",
       title: "",
       content: "",
+      url: "",
       rationale_note: "",
     },
   });
+
+  const selectedType = watch("type");
 
   const mutation = useMutation({
     mutationFn: (data: any) =>
@@ -84,15 +86,26 @@ export function NodeCreateForm({ parentNode, projectId, methodology = "strict", 
           )}
         </div>
 
-        <div>
-          <label className="block text-xs font-medium mb-1">内容</label>
-          <textarea
-            {...register("content")}
-            rows={4}
-            className="w-full border rounded px-2 py-1.5 text-sm resize-none"
-            placeholder="詳細を記述"
-          />
-        </div>
+        {selectedType === "task" || selectedType === "code" ? (
+          <div>
+            <label className="block text-xs font-medium mb-1">URL（任意）</label>
+            <input
+              {...register("url")}
+              className="w-full border rounded px-2 py-1.5 text-sm"
+              placeholder="https://..."
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs font-medium mb-1">内容</label>
+            <textarea
+              {...register("content")}
+              rows={4}
+              className="w-full border rounded px-2 py-1.5 text-sm resize-none"
+              placeholder="詳細を記述"
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-medium mb-1">経緯（任意）</label>

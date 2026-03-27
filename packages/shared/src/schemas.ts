@@ -15,8 +15,6 @@ export const CreatedBy = z.enum(["user", "ai"]);
 
 export const LinkType = z.enum(["derives", "references", "tests"]);
 
-export const Methodology = z.enum(["strict", "mvp"]);
-
 export const VISIBLE_NODE_TYPES = [
   "overview",
   "need",
@@ -49,51 +47,26 @@ export const CHILD_TYPE_MAP: Record<string, string[]> = {
   test: [],
 };
 
-// methodology別の推奨子ノードマップ（AIが提案する種別）
-export const METHODOLOGY_CHILD_TYPE_MAP: Record<string, Record<string, string[]>> = {
-  strict: {
-    overview: ["need"], need: ["req"], req: ["spec"],
-    spec: ["design"], design: ["task"], task: ["code", "test"],
-    code: [], test: [],
-  },
-  mvp: {
-    overview: ["need"], need: ["task"],
-    task: ["code", "test"],
-    code: [], test: [],
-  },
+// 許容子ノードマップ（下位工程すべて許可）
+export const ALLOWED_CHILD_MAP: Record<string, string[]> = {
+  overview: ["need", "req", "spec", "design", "task", "code", "test"],
+  need: ["req", "spec", "design", "task", "code", "test"],
+  req: ["spec", "design", "task", "code", "test"],
+  spec: ["design", "task", "code", "test"],
+  design: ["task", "code", "test"],
+  task: ["code", "test"],
+  code: [], test: [],
 };
 
-// methodology別の許容子ノードマップ（手動作成・バリデーションで許容する種別）
-export const ALLOWED_CHILD_TYPE_MAP: Record<string, Record<string, string[]>> = {
-  strict: {
-    overview: ["need"], need: ["req"], req: ["spec"],
-    spec: ["design"], design: ["task"], task: ["code", "test"],
-    code: [], test: [],
-  },
-  mvp: {
-    overview: ["need"], need: ["req", "task"],
-    req: ["spec", "task"], spec: ["design"], design: ["task"],
-    task: ["code", "test"], code: [], test: [],
-  },
-};
-
-export function getChildTypeMap(methodology: string): Record<string, string[]> {
-  return METHODOLOGY_CHILD_TYPE_MAP[methodology] || METHODOLOGY_CHILD_TYPE_MAP.strict;
+export function getChildTypeMap(): Record<string, string[]> {
+  return CHILD_TYPE_MAP;
 }
 
-export function getAllowedChildTypeMap(methodology: string): Record<string, string[]> {
-  return ALLOWED_CHILD_TYPE_MAP[methodology] || ALLOWED_CHILD_TYPE_MAP.strict;
+export function getAllowedChildTypeMap(): Record<string, string[]> {
+  return ALLOWED_CHILD_MAP;
 }
 
-export const METHODOLOGY_LABELS: Record<string, string> = {
-  strict: "厳密（ウォーターフォール型）",
-  mvp: "MVP（実装優先）",
-};
-
-export const METHODOLOGY_GUIDANCE: Record<string, string> = {
-  strict: "全レイヤー（要求→要件→仕様→設計→タスク）を順番に定義してください。各段階を丁寧に掘り下げてからノードを作成してください。",
-  mvp: "最小限のタスクを素早く作成し、実装を優先してください。要求からすぐにタスクを起こしてOKです。要件・仕様・設計はあとから必要に応じて追加できます。完璧を目指さず、まず動くものを作ることを重視してください。",
-};
+export const GUIDANCE_TEXT = "全レイヤー（要求→要件→仕様→設計→タスク）を順番に定義してください。各段階を丁寧に掘り下げてからノードを作成してください。";
 
 export const NODE_LABELS: Record<string, string> = {
   overview: "システム概要",
@@ -113,7 +86,6 @@ export const CreateProjectSchema = z.object({
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
   active_lanes: z.array(z.enum(["need", "req", "spec", "design", "task", "code", "test"])),
-  methodology: Methodology.default("strict"),
 });
 
 export const UpdateProjectSchema = z.object({
@@ -123,7 +95,6 @@ export const UpdateProjectSchema = z.object({
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
   active_lanes: z.array(z.enum(["need", "req", "spec", "design", "task", "code", "test"])).optional(),
-  methodology: Methodology.optional(),
 });
 
 export const CreateNodeSchema = z.object({

@@ -13,13 +13,6 @@ app.post("/", async (c) => {
   const parsed = ChatRequestSchema.parse(body);
   const now = new Date().toISOString();
 
-  // Get project methodology
-  const [project] = await db
-    .select()
-    .from(schema.projects)
-    .where(eq(schema.projects.id, parsed.project_id));
-  const methodology = project?.methodology || "strict";
-
   // Get or create conversation
   let convId = parsed.conversation_id;
   if (!convId) {
@@ -50,7 +43,6 @@ app.post("/", async (c) => {
     aiResponse = await consult({
       projectContext,
       message: parsed.message,
-      methodology,
       history: parsed.history,
     });
 
@@ -60,7 +52,7 @@ app.post("/", async (c) => {
       try {
         const jsonData = JSON.parse(jsonMatch[1]);
         if (jsonData.nodes && Array.isArray(jsonData.nodes)) {
-          const allowedMap = getAllowedChildTypeMap(methodology);
+          const allowedMap = getAllowedChildTypeMap();
 
           // Build a map to look up parent node types
           const allNodes = await db
@@ -155,7 +147,6 @@ app.post("/", async (c) => {
       context,
       message: parsed.message,
       parentType,
-      methodology,
       history: parsed.history,
     });
 
@@ -166,7 +157,7 @@ app.post("/", async (c) => {
         const jsonData = JSON.parse(jsonMatch[1]);
         if (jsonData.nodes && Array.isArray(jsonData.nodes)) {
           for (const n of jsonData.nodes) {
-            const allowedMap = getAllowedChildTypeMap(methodology);
+            const allowedMap = getAllowedChildTypeMap();
             const childTypes = allowedMap[parentType] || [];
             if (!childTypes.includes(n.type)) continue;
 

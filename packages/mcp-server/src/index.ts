@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiClient } from "./client.js";
-import { getChildTypeMap, getAllowedChildTypeMap, METHODOLOGY_GUIDANCE, METHODOLOGY_LABELS } from "@cddai/shared";
+import { getChildTypeMap, getAllowedChildTypeMap, GUIDANCE_TEXT } from "@cddai/shared";
 
 const server = new McpServer({
   name: "CddAI",
@@ -101,9 +101,6 @@ server.registerPrompt(
     // Fetch project info and graph for context
     const project = await apiClient.getProject(project_id);
     const graph = await apiClient.getProjectGraph(project_id);
-    const methodology = project.methodology || "strict";
-    const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
-
     const existingNodes = graph.nodes
       ?.map((n: any) => `- [${n.type}] ${n.title} (id: ${n.id})`)
       .join("\n") || "（まだノードがありません）";
@@ -122,11 +119,10 @@ server.registerPrompt(
 ## プロジェクト情報
 - プロジェクト名: ${project.name}
 - 目的: ${project.purpose}
-- 開発手法: ${methodology}
 - プロジェクトID: ${project_id}
 
 ## 開発手法のガイダンス
-${guidance}
+${GUIDANCE_TEXT}
 
 ## overviewノードID
 ${overviewId}
@@ -148,7 +144,6 @@ ${existingNodes}
 - ノードのcontentは必ずマークダウン形式で記述してください（見出し、箇条書き、コードブロック等を活用）
 - ユーザーの修正要望があれば反映してください
 - ユーザーが「OK」「はい」「作成して」など明確に承認するまで次に進まないでください
-${methodology === "mvp" ? "\n- MVP手法のため、要求が固まったらすぐにタスクノードの作成を提案してください。要件・仕様・設計は後から追加できます。" : ""}
 
 ### Phase 3: 登録
 - ユーザーの承認を得たら、以下の手順でノードを作成してください:
@@ -187,11 +182,7 @@ server.registerPrompt(
   async ({ project_id, node_id }) => {
     const node = await apiClient.getNode(node_id);
     const context = await apiClient.getNodeContext(node_id);
-    const project = await apiClient.getProject(project_id);
-    const methodology = project.methodology || "strict";
-    const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
-
-    const childTypeMap = getChildTypeMap(methodology);
+    const childTypeMap = getChildTypeMap();
     const childTypes = childTypeMap[node.type] || [];
     const childTypeLabels: Record<string, string> = {
       need: "要求", req: "要件", spec: "仕様",
@@ -212,10 +203,9 @@ server.registerPrompt(
 - 内容: ${node.content}
 - ノードID: ${node_id}
 - プロジェクトID: ${project_id}
-- 開発手法: ${methodology}
 
 ## 開発手法のガイダンス
-${guidance}
+${GUIDANCE_TEXT}
 
 ## 上流コンテキスト
 ${context.context}
@@ -234,7 +224,6 @@ ${childTypes.map((t) => `- ${t}（${childTypeLabels[t] || t}）`).join("\n")}
 - ヒアリング結果を踏まえ、作成する子ノードをマークダウン形式で提案してください
 - ノードのcontentは必ずマークダウン形式で記述してください（見出し、箇条書き、コードブロック等を活用）
 - ユーザーの承認を待ってください
-${methodology === "mvp" ? "- MVP手法のため、素早くタスクノードを提案してください。詳細な仕様や設計は後から追加できます。" : ""}
 
 ### Phase 3: 登録
 - 承認後にcreate_conversation→create_nodeの順で作成してください
@@ -843,27 +832,21 @@ server.registerTool(
       scope: z.string().optional().describe("スコープ（任意）"),
       stakeholders: z.string().optional().describe("ステークホルダー（任意）"),
       constraints: z.string().optional().describe("技術的制約（任意）"),
-      methodology: z.enum(["strict", "mvp"]).default("strict")
-        .describe("開発手法: strict（厳密・ウォーターフォール型）/ mvp（実装優先）"),
       active_lanes: z
         .array(z.enum(["need", "req", "spec", "design", "task", "code", "test"]))
         .optional()
-        .describe("使用するレーン（省略時はmethodologyに応じたデフォルト）"),
+        .describe("使用するレーン（省略時は全レーン）"),
     },
   },
-  safeHandler(async ({ name, purpose, scope, stakeholders, constraints, methodology, active_lanes }) => {
-    const defaultLanes: Record<string, string[]> = {
-      strict: ["need", "req", "spec", "design", "task"],
-      mvp: ["need", "task"],
-    };
+  safeHandler(async ({ name, purpose, scope, stakeholders, constraints, active_lanes }) => {
+    const defaultLanes = ["need", "req", "spec", "design", "task", "code", "test"];
     const project = await apiClient.createProject({
       name,
       purpose,
       scope: scope || "",
       stakeholders: stakeholders || "",
       constraints: constraints || "",
-      methodology,
-      active_lanes: active_lanes || defaultLanes[methodology] || defaultLanes.strict,
+      active_lanes: active_lanes || defaultLanes,
     });
     return {
       content: [{
@@ -884,15 +867,11 @@ server.registerPrompt(
       "現在の会話内容からCddAIプロジェクトを新規作成し、要求・要件ノードを自動抽出するワークフロー。普段の会話の途中で「これをプロジェクト化したい」と思ったときに使用。",
     argsSchema: {
       conversation_summary: z.string().describe("これまでの会話の要約や、プロジェクト化したい内容の説明"),
-      methodology: z.enum(["strict", "mvp"]).default("mvp")
-        .describe("開発手法: strict（厳密）/ mvp（実装優先、デフォルト）"),
     },
   },
-  async ({ conversation_summary, methodology }) => {
-    const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
-    const methodologyLabel = METHODOLOGY_LABELS[methodology] || methodology;
-    const childTypeMap = getChildTypeMap(methodology);
-    const allowedMap = getAllowedChildTypeMap(methodology);
+  async ({ conversation_summary }) => {
+    const childTypeMap = getChildTypeMap();
+    const allowedMap = getAllowedChildTypeMap();
 
     return {
       messages: [
@@ -906,11 +885,8 @@ server.registerPrompt(
 ## 会話の要約
 ${conversation_summary}
 
-## 選択された開発手法
-${methodologyLabel}
-
 ## 開発手法のガイダンス
-${guidance}
+${GUIDANCE_TEXT}
 
 ## ノード階層（推奨パス）
 ${Object.entries(childTypeMap).filter(([, v]) => (v as string[]).length > 0).map(([k, v]) => `- ${k} → ${(v as string[]).join(", ")}`).join("\n")}
@@ -941,15 +917,10 @@ ${Object.entries(allowedMap).filter(([, v]) => (v as string[]).length > 0).map((
 - create_node の parent_id には **overview_id** を指定
 - 会話から明確に読み取れるものだけ抽出し、推測で追加しない
 
-### Step 4: 下位ノードの作成（${methodology === "mvp" ? "タスク優先" : "要件→仕様→設計→タスクの順"}）
-${methodology === "mvp"
-  ? `MVP手法のため、各needの下に直接taskノードを提案してください。
-- create_nodeのparent_idには **親needノードのID** を指定
-- 詳細な要件・仕様・設計はスキップし、まず動くものを作ることを優先
-- 後から req/spec/design を補完できることをユーザーに伝える`
-  : `各needから順番にreq→spec→design→taskを作成してください。
+### Step 4: 下位ノードの作成（要件→仕様→設計→タスクの順）
+各needから順番にreq→spec→design→taskを作成してください。
 - 各ノードのparent_idには直接の親ノードIDを指定（needのIDをreqのparent_idに、reqのIDをspecのparent_idに、等）
-- すべてのノードをoverviewに紐づけないでください`}
+- すべてのノードをoverviewに紐づけないでください
 - 各ノードは1つずつユーザーに提案し、承認を得てから作成
 
 ### Step 5: 完了サマリー
@@ -961,7 +932,7 @@ Web UIでの確認URL: http://localhost:3000/projects/{project_id}
 - **reqノード**: parent_id = 親needのID
 - **specノード**: parent_id = 親reqのID
 - **designノード**: parent_id = 親specのID
-- **taskノード**: parent_id = 親designのID（strictの場合）または親needのID（mvpの場合）
+- **taskノード**: parent_id = 親designのID
 - **絶対にすべてのノードをoverviewに紐づけないでください**
 
 ## 重要な注意事項

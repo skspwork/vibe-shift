@@ -59,16 +59,9 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     },
   });
 
-  const { data: project } = useQuery({
-    queryKey: ["project", projectId],
-    queryFn: () => api.getProject(projectId),
-  });
-
-  const methodology = project?.methodology || "strict";
-
   if (!node) return <div className="p-4 text-gray-400">読み込み中...</div>;
 
-  const allowedMap = getAllowedChildTypeMap(methodology);
+  const allowedMap = getAllowedChildTypeMap();
   const childTypes = allowedMap[node.type] || [];
   const canCreateChild = childTypes.length > 0;
 
@@ -102,7 +95,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
       <NodeCreateForm
         parentNode={node}
         projectId={projectId}
-        methodology={methodology}
         onCreated={() => {
           setShowCreateChild(false);
           onUpdate();

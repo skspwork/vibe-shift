@@ -154,8 +154,8 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
         target: e.to_node_id,
         animated: false,
         style: {
-          stroke: isFocused ? "#94a3b8" : "#e2e8f0",
-          strokeWidth: isFocused ? 2 : 1,
+          stroke: isFocused ? "#94a3b8" : "#94a3b8",
+          strokeWidth: isFocused ? 2 : 2,
           opacity: isFocused ? 1 : 0.5,
         },
       };

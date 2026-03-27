@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { getChildTypeMap, getAllowedChildTypeMap, NODE_LABELS, METHODOLOGY_GUIDANCE } from "@cddai/shared";
+import { getChildTypeMap, getAllowedChildTypeMap, NODE_LABELS, GUIDANCE_TEXT } from "@cddai/shared";
 
 const anthropic = new Anthropic();
 
@@ -7,22 +7,20 @@ interface ChatParams {
   context: string;
   message: string;
   parentType: string;
-  methodology?: string;
   history?: { role: "user" | "assistant"; content: string }[];
 }
 
 export async function chat(params: ChatParams) {
-  const { context, message, parentType, methodology = "strict", history = [] } = params;
-  const childTypeMap = getChildTypeMap(methodology);
+  const { context, message, parentType, history = [] } = params;
+  const childTypeMap = getChildTypeMap();
   const childTypes = childTypeMap[parentType] || [];
   const childLabels = childTypes.map((t) => `${NODE_LABELS[t]}(${t})`).join("、");
-  const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
 
   const systemPrompt = `あなたはAIドリブン開発トレーサビリティ管理システム「CddAI」のアシスタントです。
 ユーザーとの対話を通じて、開発プロジェクトの要求・要件・仕様・設計・タスクのノードを作成・整理します。
 
 【開発手法】
-${guidance}
+${GUIDANCE_TEXT}
 
 以下のコンテキストに基づいて対話してください：
 
@@ -71,14 +69,12 @@ ${context}
 interface ConsultParams {
   projectContext: string;
   message: string;
-  methodology?: string;
   history?: { role: "user" | "assistant"; content: string }[];
 }
 
 export async function consult(params: ConsultParams) {
-  const { projectContext, message, methodology = "strict", history = [] } = params;
-  const guidance = METHODOLOGY_GUIDANCE[methodology] || "";
-  const allowedMap = getAllowedChildTypeMap(methodology);
+  const { projectContext, message, history = [] } = params;
+  const allowedMap = getAllowedChildTypeMap();
 
   // Build allowed hierarchy description
   const hierarchyDesc = Object.entries(allowedMap)
@@ -96,7 +92,7 @@ export async function consult(params: ConsultParams) {
 - 必要に応じて要件・仕様へと段階的に深掘りを提案する
 
 【開発手法】
-${guidance}
+${GUIDANCE_TEXT}
 
 【ノード階層（許容パス）】
 ${hierarchyDesc}

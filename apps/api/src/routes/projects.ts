@@ -26,7 +26,6 @@ app.post("/", async (c) => {
     id: projectId,
     name: parsed.name,
     active_lanes: JSON.stringify(parsed.active_lanes),
-    methodology: parsed.methodology,
     created_at: now,
   });
 
@@ -57,7 +56,6 @@ app.post("/", async (c) => {
       id: projectId,
       name: parsed.name,
       active_lanes: parsed.active_lanes,
-      methodology: parsed.methodology,
       created_at: now,
       overview_id: overviewId,
     },
@@ -78,7 +76,6 @@ app.patch("/:id", async (c) => {
 
   const updates: Record<string, any> = {};
   if (parsed.name !== undefined) updates.name = parsed.name;
-  if (parsed.methodology !== undefined) updates.methodology = parsed.methodology;
   if (parsed.active_lanes !== undefined)
     updates.active_lanes = JSON.stringify(parsed.active_lanes);
 

@@ -3,7 +3,6 @@ import type {
   NodeType as NodeTypeSchema,
   CreatedBy as CreatedBySchema,
   LinkType as LinkTypeSchema,
-  Methodology as MethodologySchema,
   CreateProjectSchema,
   CreateNodeSchema,
   UpdateNodeSchema,
@@ -14,8 +13,6 @@ import type {
 export type NodeTypeValue = z.infer<typeof NodeTypeSchema>;
 export type CreatedByValue = z.infer<typeof CreatedBySchema>;
 export type LinkTypeValue = z.infer<typeof LinkTypeSchema>;
-export type MethodologyValue = z.infer<typeof MethodologySchema>;
-
 export type CreateProject = z.infer<typeof CreateProjectSchema>;
 export type CreateNode = z.infer<typeof CreateNodeSchema>;
 export type UpdateNode = z.infer<typeof UpdateNodeSchema>;
@@ -26,7 +23,6 @@ export interface Project {
   id: string;
   name: string;
   active_lanes: string[];
-  methodology: string;
   created_at: string;
 }
 

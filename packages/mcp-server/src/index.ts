@@ -320,10 +320,11 @@ server.registerTool(
         .uuid()
         .optional()
         .describe("会話ID（create_conversationで作成したIDを指定すると生成経緯として紐付く）"),
+      url: z.string().optional().describe("外部URL（task: チケットURL、code: PR/MR URL）"),
       rationale_note: z.string().optional().describe("経緯メモ（任意、マークダウン形式）"),
     },
   },
-  safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, rationale_note }) => {
+  safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, url, rationale_note }) => {
     const node = await apiClient.createNode({
       project_id,
       type,
@@ -331,6 +332,7 @@ server.registerTool(
       content,
       parent_id,
       conversation_id,
+      url,
       rationale_note,
       created_by: "ai",
     });
@@ -973,7 +975,44 @@ Web UIでの確認URL: http://localhost:3000/projects/{project_id}
   }
 );
 
-// ─── Tool 15: consult_context ───
+// ─── Tool 15: register_code ───
+server.registerTool(
+  "register_code",
+  {
+    description:
+      "タスクノードにコードリンク（PR URLやコミットURL）を登録する。codeノードを作成しタスクにリンクする。",
+    annotations: {
+      title: "コードリンク登録",
+    },
+    inputSchema: {
+      task_id: z.string().uuid().describe("タスクノードID"),
+      title: z.string().describe("リンクタイトル（例: PR #123 ログイン機能）"),
+      url: z.string().describe("PR URLやコミットURL"),
+    },
+  },
+  safeHandler(async ({ task_id, title, url }) => {
+    const task = await apiClient.getNode(task_id);
+    if (task.type !== "task") {
+      return {
+        content: [{ type: "text" as const, text: "エラー: 指定されたノードはtaskではありません" }],
+        isError: true,
+      };
+    }
+    const node = await apiClient.createNode({
+      project_id: task.project_id,
+      type: "code",
+      title,
+      content: "",
+      url,
+      parent_id: task_id,
+    });
+    return {
+      content: [{ type: "text" as const, text: `コードリンクを登録しました。\n\n${JSON.stringify(node, null, 2)}` }],
+    };
+  })
+);
+
+// ─── Tool 16: consult_context ───
 server.registerTool(
   "consult_context",
   {

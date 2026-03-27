@@ -19,6 +19,7 @@ app.post("/", async (c) => {
     type: parsed.type,
     title: parsed.title,
     content: parsed.content,
+    url: parsed.url || null,
     rationale_note: parsed.rationale_note || null,
     conversation_id: parsed.conversation_id || null,
     created_by: parsed.created_by,

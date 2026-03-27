@@ -25,6 +25,7 @@ export const nodes = sqliteTable("nodes", {
   type: text("type").notNull(),
   title: text("title").notNull(),
   content: text("content").notNull().default(""),
+  url: text("url"),
   rationale_note: text("rationale_note"),
   conversation_id: text("conversation_id").references(() => conversations.id),
   created_by: text("created_by").notNull().default("user"),

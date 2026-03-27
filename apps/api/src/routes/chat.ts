@@ -105,6 +105,7 @@ app.post("/", async (c) => {
               type: n.type,
               title: n.title,
               content: n.description || "",
+              url: null,
               rationale_note: null,
               conversation_id: convId,
               created_by: "ai",

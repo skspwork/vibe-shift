@@ -156,7 +156,7 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
         style: {
           stroke: isFocused ? "#94a3b8" : "#e2e8f0",
           strokeWidth: isFocused ? 2 : 1,
-          opacity: isFocused ? 1 : 0.3,
+          opacity: isFocused ? 1 : 0.5,
         },
       };
     });

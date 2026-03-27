@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { NODE_LABELS, getAllowedChildTypeMap } from "@cddai/shared";
 import { useAppStore } from "@/lib/store";
-import { Pencil, Plus, MessageCircle, X, Check, Trash2 } from "lucide-react";
+import { Pencil, Plus, MessageCircle, X, Check, Trash2, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";
+
 import { NodeCreateForm } from "../node/NodeCreateForm";
 import { Markdown } from "../ui/Markdown";
 
@@ -22,6 +23,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editUrl, setEditUrl] = useState("");
   const queryClient = useQueryClient();
   const setSession = useAppStore((s) => s.setSession);
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
@@ -70,14 +72,21 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const childTypes = allowedMap[node.type] || [];
   const canCreateChild = childTypes.length > 0;
 
+  const hasUrl = node.type === "task" || node.type === "code";
+
   const startEdit = () => {
     setEditTitle(node.title);
     setEditContent(node.content);
+    setEditUrl(node.url || "");
     setEditing(true);
   };
 
   const saveEdit = () => {
-    updateMutation.mutate({ title: editTitle, content: editContent });
+    const data: any = { title: editTitle, content: editContent };
+    if (hasUrl) {
+      data.url = editUrl || null;
+    }
+    updateMutation.mutate(data);
   };
 
   const startSession = () => {
@@ -139,6 +148,14 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
             rows={5}
             className="w-full border rounded px-2 py-1 text-sm resize-none"
           />
+          {hasUrl && (
+            <input
+              value={editUrl}
+              onChange={(e) => setEditUrl(e.target.value)}
+              placeholder="URL（チケットやPRのリンク）"
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          )}
           <div className="flex gap-2">
             <button
               onClick={saveEdit}
@@ -157,6 +174,17 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
       ) : (
         <>
           <h2 className="font-bold text-lg">{node.title}</h2>
+          {node.url && (
+            <a
+              href={node.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+            >
+              <ExternalLink size={14} />
+              {node.url}
+            </a>
+          )}
           <Markdown className="text-sm text-gray-600">
             {node.content}
           </Markdown>
@@ -170,6 +198,8 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
           updateMutation.mutate({ rationale_note: note })
         }
       />
+
+
 
       <div className="border-t pt-4 space-y-2">
         <p className="text-xs font-medium text-gray-500 uppercase">

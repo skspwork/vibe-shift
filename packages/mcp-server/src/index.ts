@@ -56,15 +56,16 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
    - create_conversation → create_node（conversation_idを指定）の順で経緯を記録
 4. **段階的に深掘りを提案する**
    - need作成後は「要件に落とし込みますか？」と提案
-   - req → spec → design → task と段階的に進める
+   - req → spec → basic_design → detail_design → task と段階的に進める
 
 ## ノード種別と階層
 - overview: プロジェクト概要（プロジェクト作成時に自動生成、1つのみ）
 - need: 要求（ステークホルダーのニーズ）
 - req: 要件（needを具体化した要件）
 - spec: 仕様（reqを満たす技術仕様）
-- design: 設計（specの実現方法）
-- task: タスク（designを実現する作業単位）
+- basic_design: 基本設計（APIインターフェース、DBテーブル定義、画面設計、システム構成など）
+- detail_design: 詳細設計（クラス設計、シーケンス、アルゴリズム、内部処理フローなど）
+- task: タスク（detail_designを実現する作業単位）
 - code: コード（taskの実装）
 - test: テスト（taskの検証）
 
@@ -154,7 +155,7 @@ ${existingNodes}
 ## parent_idの指定ルール（重要）
 - **needノード作成時**: parent_idにはoverviewノードID（${overviewId}）を指定してください
 - **reqノード作成時**: parent_idには親となるneedノードのIDを指定してください
-- **spec作成時**: 親のreqのID、**design作成時**: 親のspecのID、**task作成時**: 親のdesignまたはneedのID
+- **spec作成時**: 親のreqのID、**basic_design作成時**: 親のspecのID、**detail_design作成時**: 親のbasic_designのID、**task作成時**: 親のdetail_designのID
 - **絶対にすべてのノードをoverviewに紐づけないでください。正しい親子関係を守ってください。**
 
 ## 重要な注意事項
@@ -186,7 +187,7 @@ server.registerPrompt(
     const childTypes = childTypeMap[node.type] || [];
     const childTypeLabels: Record<string, string> = {
       need: "要求", req: "要件", spec: "仕様",
-      design: "設計", task: "タスク", code: "コード", test: "テスト",
+      basic_design: "基本設計", detail_design: "詳細設計", task: "タスク", code: "コード", test: "テスト",
     };
 
     return {
@@ -288,7 +289,7 @@ server.registerTool(
   "create_node",
   {
     description:
-      "ノードを作成し、親ノードにリンクする。種別: need, req, spec, design, task, code, test。conversation_idを指定すると、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
+      "ノードを作成し、親ノードにリンクする。種別: need, req, spec, basic_design, detail_design, task, code, test。conversation_idを指定すると、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
     annotations: {
       title: "ノード作成",
       destructiveHint: false,
@@ -299,7 +300,7 @@ server.registerTool(
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
       type: z
-        .enum(["need", "req", "spec", "design", "task", "code", "test"])
+        .enum(["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"])
         .describe("ノード種別"),
       title: z.string().describe("タイトル（10文字程度）"),
       content: z.string().describe("詳細内容（マークダウン形式で記述）"),
@@ -546,7 +547,7 @@ server.registerTool(
       query: z.string().describe("検索クエリ"),
       types: z
         .array(
-          z.enum(["overview", "need", "req", "spec", "design", "task", "code", "test"])
+          z.enum(["overview", "need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"])
         )
         .optional()
         .describe("フィルタするノード種別の配列（任意）"),
@@ -589,7 +590,7 @@ server.registerTool(
   "list_tasks",
   {
     description:
-      "指定プロジェクトのタスクノード一覧を取得する。各タスクの親designノード名も付与される。",
+      "指定プロジェクトのタスクノード一覧を取得する。各タスクの親設計ノード名も付与される。",
     annotations: {
       title: "タスク一覧",
       readOnlyHint: true,
@@ -705,11 +706,20 @@ server.registerTool(
       }
     }
 
-    // Design
-    const designs = nodesByType["design"] || [];
-    if (designs.length > 0) {
-      sections.push(`## 設計（実装方針）`);
-      for (const d of designs) {
+    // Basic Design
+    const basicDesigns = nodesByType["basic_design"] || [];
+    if (basicDesigns.length > 0) {
+      sections.push(`## 基本設計（API・DB・画面設計）`);
+      for (const d of basicDesigns) {
+        sections.push(`### ${d.title}\n${d.content}\n`);
+      }
+    }
+
+    // Detail Design
+    const detailDesigns = nodesByType["detail_design"] || [];
+    if (detailDesigns.length > 0) {
+      sections.push(`## 詳細設計（クラス・シーケンス・アルゴリズム）`);
+      for (const d of detailDesigns) {
         sections.push(`### ${d.title}\n${d.content}\n`);
       }
     }
@@ -833,13 +843,13 @@ server.registerTool(
       stakeholders: z.string().optional().describe("ステークホルダー（任意）"),
       constraints: z.string().optional().describe("技術的制約（任意）"),
       active_lanes: z
-        .array(z.enum(["need", "req", "spec", "design", "task", "code", "test"]))
+        .array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"]))
         .optional()
         .describe("使用するレーン（省略時は全レーン）"),
     },
   },
   safeHandler(async ({ name, purpose, scope, stakeholders, constraints, active_lanes }) => {
-    const defaultLanes = ["need", "req", "spec", "design", "task", "code", "test"];
+    const defaultLanes = ["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"];
     const project = await apiClient.createProject({
       name,
       purpose,
@@ -917,9 +927,11 @@ ${Object.entries(allowedMap).filter(([, v]) => (v as string[]).length > 0).map((
 - create_node の parent_id には **overview_id** を指定
 - 会話から明確に読み取れるものだけ抽出し、推測で追加しない
 
-### Step 4: 下位ノードの作成（要件→仕様→設計→タスクの順）
-各needから順番にreq→spec→design→taskを作成してください。
+### Step 4: 下位ノードの作成（要件→仕様→基本設計→詳細設計→タスクの順）
+各needから順番にreq→spec→basic_design→detail_design→taskを作成してください。
 - 各ノードのparent_idには直接の親ノードIDを指定（needのIDをreqのparent_idに、reqのIDをspecのparent_idに、等）
+- basic_designにはAPIインターフェース、DBテーブル定義、画面設計、システム構成を記述
+- detail_designにはクラス設計、シーケンス、アルゴリズム、内部処理フローを記述
 - すべてのノードをoverviewに紐づけないでください
 - 各ノードは1つずつユーザーに提案し、承認を得てから作成
 
@@ -931,8 +943,9 @@ Web UIでの確認URL: http://localhost:3000/projects/{project_id}
 - **needノード**: parent_id = overview_id
 - **reqノード**: parent_id = 親needのID
 - **specノード**: parent_id = 親reqのID
-- **designノード**: parent_id = 親specのID
-- **taskノード**: parent_id = 親designのID
+- **basic_designノード**: parent_id = 親specのID
+- **detail_designノード**: parent_id = 親basic_designのID
+- **taskノード**: parent_id = 親detail_designのID
 - **絶対にすべてのノードをoverviewに紐づけないでください**
 
 ## 重要な注意事項
@@ -1043,8 +1056,11 @@ ${context}
 - コンテンツはマークダウン形式で記述してください
 - parent_idには適切な親ノードのIDを指定してください
 - needノードの親はoverviewノード
-- req/taskの親はneedノード（mvpの場合taskはneedの直下も可）
-- spec, design, task は上位ノードの直下に
+- reqの親はneedノード
+- specの親はreqノード
+- basic_designの親はspecノード（APIインターフェース、DBテーブル定義、画面設計を記述）
+- detail_designの親はbasic_designノード（クラス設計、シーケンス、アルゴリズムを記述）
+- taskの親はdetail_designノード
 - ユーザーの承認なしにcreate_nodeを呼ばないでください
 
 ## 会話の記録

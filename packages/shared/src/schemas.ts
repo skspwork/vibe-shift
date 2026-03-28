@@ -5,7 +5,8 @@ export const NodeType = z.enum([
   "need",
   "req",
   "spec",
-  "design",
+  "basic_design",
+  "detail_design",
   "task",
   "code",
   "test",
@@ -20,7 +21,8 @@ export const VISIBLE_NODE_TYPES = [
   "need",
   "req",
   "spec",
-  "design",
+  "basic_design",
+  "detail_design",
   "task",
   "code",
   "test",
@@ -30,7 +32,8 @@ export const LANE_TYPES = [
   "need",
   "req",
   "spec",
-  "design",
+  "basic_design",
+  "detail_design",
   "task",
   "code",
   "test",
@@ -40,8 +43,9 @@ export const CHILD_TYPE_MAP: Record<string, string[]> = {
   overview: ["need"],
   need: ["req"],
   req: ["spec"],
-  spec: ["design"],
-  design: ["task"],
+  spec: ["basic_design"],
+  basic_design: ["detail_design"],
+  detail_design: ["task"],
   task: ["code", "test"],
   code: [],
   test: [],
@@ -49,11 +53,12 @@ export const CHILD_TYPE_MAP: Record<string, string[]> = {
 
 // 許容子ノードマップ（下位工程すべて許可）
 export const ALLOWED_CHILD_MAP: Record<string, string[]> = {
-  overview: ["need", "req", "spec", "design", "task", "code", "test"],
-  need: ["req", "spec", "design", "task", "code", "test"],
-  req: ["spec", "design", "task", "code", "test"],
-  spec: ["design", "task", "code", "test"],
-  design: ["task", "code", "test"],
+  overview: ["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"],
+  need: ["req", "spec", "basic_design", "detail_design", "task", "code", "test"],
+  req: ["spec", "basic_design", "detail_design", "task", "code", "test"],
+  spec: ["basic_design", "detail_design", "task", "code", "test"],
+  basic_design: ["detail_design", "task", "code", "test"],
+  detail_design: ["task", "code", "test"],
   task: ["code", "test"],
   code: [], test: [],
 };
@@ -66,14 +71,16 @@ export function getAllowedChildTypeMap(): Record<string, string[]> {
   return ALLOWED_CHILD_MAP;
 }
 
-export const GUIDANCE_TEXT = "全レイヤー（要求→要件→仕様→設計→タスク）を順番に定義してください。各段階を丁寧に掘り下げてからノードを作成してください。";
+export const GUIDANCE_TEXT = "全レイヤー（要求→要件→仕様→基本設計→詳細設計→タスク）を順番に定義してください。各段階を丁寧に掘り下げてからノードを作成してください。";
 
 export const NODE_LABELS: Record<string, string> = {
   overview: "システム概要",
   need: "要求",
   req: "要件",
   spec: "仕様",
-  design: "設計",
+  design: "設計（旧）",
+  basic_design: "基本設計",
+  detail_design: "詳細設計",
   task: "タスク",
   code: "コード",
   test: "テスト",
@@ -85,7 +92,7 @@ export const CreateProjectSchema = z.object({
   scope: z.string().optional(),
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
-  active_lanes: z.array(z.enum(["need", "req", "spec", "design", "task", "code", "test"])),
+  active_lanes: z.array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"])),
 });
 
 export const UpdateProjectSchema = z.object({
@@ -94,7 +101,7 @@ export const UpdateProjectSchema = z.object({
   scope: z.string().optional(),
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
-  active_lanes: z.array(z.enum(["need", "req", "spec", "design", "task", "code", "test"])).optional(),
+  active_lanes: z.array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"])).optional(),
 });
 
 export const CreateNodeSchema = z.object({

@@ -17,7 +17,7 @@ export async function chat(params: ChatParams) {
   const childLabels = childTypes.map((t) => `${NODE_LABELS[t]}(${t})`).join("、");
 
   const systemPrompt = `あなたはAIドリブン開発トレーサビリティ管理システム「CddAI」のアシスタントです。
-ユーザーとの対話を通じて、開発プロジェクトの要求・要件・仕様・設計・タスクのノードを作成・整理します。
+ユーザーとの対話を通じて、開発プロジェクトの要求・要件・仕様・基本設計・詳細設計・タスクのノードを作成・整理します。
 
 【開発手法】
 ${GUIDANCE_TEXT}
@@ -83,7 +83,7 @@ export async function consult(params: ConsultParams) {
     .join("\n");
 
   const systemPrompt = `あなたはAIドリブン開発トレーサビリティ管理システム「CddAI」のプロジェクトコンサルタントです。
-ユーザーとの対話を通じて、プロジェクト全体の要求・要件・仕様・設計・タスクを整理・管理します。
+ユーザーとの対話を通じて、プロジェクト全体の要求・要件・仕様・基本設計・詳細設計・タスクを整理・管理します。
 
 【あなたの役割】
 - ユーザーの要望を聞き、既存ノードとの重複・矛盾・関連性を分析する

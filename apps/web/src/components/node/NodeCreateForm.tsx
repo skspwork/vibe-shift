@@ -86,7 +86,7 @@ export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: P
           )}
         </div>
 
-        {selectedType === "task" || selectedType === "code" ? (
+        {selectedType === "code" ? (
           <div>
             <label className="block text-xs font-medium mb-1">URL（任意）</label>
             <input

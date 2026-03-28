@@ -28,7 +28,7 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
       scope: "",
       stakeholders: "",
       constraints: "",
-      active_lanes: ["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"],
+      active_lanes: ["need", "req", "spec", "basic_design", "detail_design", "code"],
     },
   });
 

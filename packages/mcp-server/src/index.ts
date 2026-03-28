@@ -40,7 +40,7 @@ server.registerResource(
 
 ## システム概要
 CddAIは、会話駆動型の開発トレーサビリティ管理システムです。
-要求→要件→仕様→設計→タスク→コード/テストのトレーサビリティをグラフ構造で管理します。
+要求→要件→仕様→基本設計→詳細設計→コードのトレーサビリティをグラフ構造で管理します。
 
 ## あなたの役割: プロジェクトコンサルタント
 あなたはCddAIのプロジェクトコンサルタントです。ユーザーから相談を受けたら、以下の手順で行動してください:
@@ -56,7 +56,7 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
    - create_conversation → create_node（conversation_idを指定）の順で経緯を記録
 4. **段階的に深掘りを提案する**
    - need作成後は「要件に落とし込みますか？」と提案
-   - req → spec → basic_design → detail_design → task と段階的に進める
+   - req → spec → basic_design → detail_design → code と段階的に進める
 
 ## ノード種別と階層
 - overview: プロジェクト概要（プロジェクト作成時に自動生成、1つのみ）
@@ -65,9 +65,7 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 - spec: 仕様（reqを満たす技術仕様）
 - basic_design: 基本設計（APIインターフェース、DBテーブル定義、画面設計、システム構成など）
 - detail_design: 詳細設計（クラス設計、シーケンス、アルゴリズム、内部処理フローなど）
-- task: タスク（detail_designを実現する作業単位）
-- code: コード（taskの実装）
-- test: テスト（taskの検証）
+- code: コード（実装のPR/コミットへのリンク）
 
 ## ワークフロー原則
 1. **ノードを作成する前に、必ずユーザーにヒアリングしてください**
@@ -155,7 +153,7 @@ ${existingNodes}
 ## parent_idの指定ルール（重要）
 - **needノード作成時**: parent_idにはoverviewノードID（${overviewId}）を指定してください
 - **reqノード作成時**: parent_idには親となるneedノードのIDを指定してください
-- **spec作成時**: 親のreqのID、**basic_design作成時**: 親のspecのID、**detail_design作成時**: 親のbasic_designのID、**task作成時**: 親のdetail_designのID
+- **spec作成時**: 親のreqのID、**basic_design作成時**: 親のspecのID、**detail_design作成時**: 親のbasic_designのID、**code作成時**: 親のdetail_designのID
 - **絶対にすべてのノードをoverviewに紐づけないでください。正しい親子関係を守ってください。**
 
 ## 重要な注意事項
@@ -187,7 +185,7 @@ server.registerPrompt(
     const childTypes = childTypeMap[node.type] || [];
     const childTypeLabels: Record<string, string> = {
       need: "要求", req: "要件", spec: "仕様",
-      basic_design: "基本設計", detail_design: "詳細設計", task: "タスク", code: "コード", test: "テスト",
+      basic_design: "基本設計", detail_design: "詳細設計", code: "コード",
     };
 
     return {
@@ -289,7 +287,7 @@ server.registerTool(
   "create_node",
   {
     description:
-      "ノードを作成し、親ノードにリンクする。種別: need, req, spec, basic_design, detail_design, task, code, test。conversation_idを指定すると、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
+      "ノードを作成し、親ノードにリンクする。種別: need, req, spec, basic_design, detail_design, code。conversation_idを指定すると、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
     annotations: {
       title: "ノード作成",
       destructiveHint: false,
@@ -300,7 +298,7 @@ server.registerTool(
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
       type: z
-        .enum(["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"])
+        .enum(["need", "req", "spec", "basic_design", "detail_design", "code"])
         .describe("ノード種別"),
       title: z.string().describe("タイトル（10文字程度）"),
       content: z.string().describe("詳細内容（マークダウン形式で記述）"),
@@ -310,7 +308,7 @@ server.registerTool(
         .uuid()
         .optional()
         .describe("会話ID（create_conversationで作成したIDを指定すると生成経緯として紐付く）"),
-      url: z.string().optional().describe("外部URL（task: チケットURL、code: PR/MR URL）"),
+      url: z.string().optional().describe("外部URL（code: PR/MR URL）"),
       rationale_note: z.string().optional().describe("経緯メモ（任意、マークダウン形式）"),
     },
   },
@@ -547,7 +545,7 @@ server.registerTool(
       query: z.string().describe("検索クエリ"),
       types: z
         .array(
-          z.enum(["overview", "need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"])
+          z.enum(["overview", "need", "req", "spec", "basic_design", "detail_design", "code"])
         )
         .optional()
         .describe("フィルタするノード種別の配列（任意）"),
@@ -585,90 +583,39 @@ server.registerTool(
   })
 );
 
-// ─── Tool 11: list_tasks ───
+// ─── Tool 11: get_implementation_brief ───
 server.registerTool(
-  "list_tasks",
+  "get_implementation_brief",
   {
     description:
-      "指定プロジェクトのタスクノード一覧を取得する。各タスクの親設計ノード名も付与される。",
+      "ノードの実装指示書を生成する。上流の全コンテキスト（要求・要件・仕様・設計）を構造化テキストで返す。Claude Codeでの実装時に使用。",
     annotations: {
-      title: "タスク一覧",
+      title: "実装指示書",
       readOnlyHint: true,
     },
     inputSchema: {
-      project_id: z.string().uuid().describe("プロジェクトID"),
+      node_id: z.string().uuid().describe("対象ノードID"),
     },
   },
-  safeHandler(async ({ project_id }) => {
-    const graph = await apiClient.getProjectGraph(project_id);
-    const tasks = graph.nodes.filter((n: any) => n.type === "task");
-
-    // Build parent map from edges
-    const parentMap = new Map<string, string>();
-    for (const e of graph.edges) {
-      parentMap.set(e.to_node_id, e.from_node_id);
-    }
-    const nodeMap = new Map<string, any>();
-    for (const n of graph.nodes) {
-      nodeMap.set(n.id, n);
-    }
-
-    const result = tasks.map((t: any) => {
-      const parentId = parentMap.get(t.id);
-      const parent = parentId ? nodeMap.get(parentId) : null;
-      return {
-        id: t.id,
-        title: t.title,
-        content: t.content,
-        parent_design: parent ? { id: parent.id, title: parent.title } : null,
-      };
-    });
-
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-    };
-  })
-);
-
-// ─── Tool 12: get_task_brief ───
-server.registerTool(
-  "get_task_brief",
-  {
-    description:
-      "タスクノードの実装指示書を生成する。上流の全コンテキスト（要求・要件・仕様・設計）を構造化テキストで返す。Claude Codeでの実装時に使用。",
-    annotations: {
-      title: "タスク実装指示書",
-      readOnlyHint: true,
-    },
-    inputSchema: {
-      task_id: z.string().uuid().describe("タスクノードID"),
-    },
-  },
-  safeHandler(async ({ task_id }) => {
-    const task = await apiClient.getNode(task_id);
-    if (task.type !== "task") {
-      return {
-        content: [{ type: "text" as const, text: `エラー: 指定ノードはtaskではなく${task.type}です` }],
-      };
-    }
+  safeHandler(async ({ node_id }) => {
+    const node = await apiClient.getNode(node_id);
 
     // Get upstream trace
-    const trace = await apiClient.getNodeTrace(task_id, "upstream");
+    const trace = await apiClient.getNodeTrace(node_id, "upstream");
     const nodesByType: Record<string, any[]> = {};
     for (const n of trace.nodes) {
       if (!nodesByType[n.type]) nodesByType[n.type] = [];
       nodesByType[n.type].push(n);
     }
 
-    // Get downstream for related code/test nodes
-    const downstream = await apiClient.getNodeTrace(task_id, "downstream");
-    const codeNodes = downstream.nodes.filter((n: any) => n.type === "code");
-    const testNodes = downstream.nodes.filter((n: any) => n.type === "test");
+    // Get downstream for related code nodes
+    const downstream = await apiClient.getNodeTrace(node_id, "downstream");
+    const codeNodes = downstream.nodes.filter((n: any) => n.type === "code" && n.id !== node_id);
 
     // Build structured brief
     const sections: string[] = [];
 
-    sections.push(`# 実装タスク: ${task.title}\n`);
+    sections.push(`# 実装対象: ${node.title}\n`);
 
     // Overview
     const overviews = nodesByType["overview"] || [];
@@ -724,25 +671,19 @@ server.registerTool(
       }
     }
 
-    // Task detail
-    sections.push(`## タスク詳細`);
-    sections.push(`${task.content}\n`);
-    if (task.rationale_note) {
-      sections.push(`### 補足メモ\n${task.rationale_note}\n`);
+    // Node detail
+    sections.push(`## 対象ノード詳細`);
+    sections.push(`- 種別: ${node.type}`);
+    sections.push(`${node.content}\n`);
+    if (node.rationale_note) {
+      sections.push(`### 補足メモ\n${node.rationale_note}\n`);
     }
 
-    // Existing code/test
+    // Existing code
     if (codeNodes.length > 0) {
       sections.push(`## 既存のコードノード`);
       for (const c of codeNodes) {
-        sections.push(`- ${c.title}: ${c.content}`);
-      }
-      sections.push("");
-    }
-    if (testNodes.length > 0) {
-      sections.push(`## 既存のテストノード`);
-      for (const t of testNodes) {
-        sections.push(`- ${t.title}: ${t.content}`);
+        sections.push(`- ${c.title}${c.url ? `: ${c.url}` : ""}`);
       }
       sections.push("");
     }
@@ -750,8 +691,8 @@ server.registerTool(
     sections.push(`## 指示`);
     sections.push(`上記のコンテキストに基づいてコードを実装してください。`);
     sections.push(`実装完了後、PRを作成し、CddAIにcodeノードとして登録してください。`);
-    sections.push(`\nタスクID: ${task_id}`);
-    sections.push(`プロジェクトID: ${task.project_id}`);
+    sections.push(`\nノードID: ${node_id}`);
+    sections.push(`プロジェクトID: ${node.project_id}`);
 
     return {
       content: [{ type: "text" as const, text: sections.join("\n") }],
@@ -759,19 +700,19 @@ server.registerTool(
   })
 );
 
-// ─── Prompt 3: implement_task ───
+// ─── Prompt 3: implement_node ───
 server.registerPrompt(
-  "implement_task",
+  "implement_node",
   {
     description:
-      "CddAIのタスクをClaude Codeで実装し、PRを作成してcodeノードを登録するワークフロー",
+      "CddAIのノード（詳細設計等）をClaude Codeで実装し、PRを作成してcodeノードを登録するワークフロー",
     argsSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
-      task_id: z.string().uuid().describe("実装対象のタスクノードID"),
+      node_id: z.string().uuid().describe("実装対象のノードID（詳細設計など）"),
     },
   },
-  async ({ project_id, task_id }) => {
-    const task = await apiClient.getNode(task_id);
+  async ({ project_id, node_id }) => {
+    const node = await apiClient.getNode(node_id);
 
     return {
       messages: [
@@ -779,42 +720,42 @@ server.registerPrompt(
           role: "user" as const,
           content: {
             type: "text" as const,
-            text: `あなたはCddAIと連携した実装アシスタントです。以下のワークフローに従ってタスクを実装してください。
+            text: `あなたはCddAIと連携した実装アシスタントです。以下のワークフローに従って実装してください。
 
-## 対象タスク
-- タイトル: ${task.title}
-- タスクID: ${task_id}
+## 対象ノード
+- タイトル: ${node.title}
+- ノードID: ${node_id}
 - プロジェクトID: ${project_id}
 
 ## ワークフロー（この順序で進めてください）
 
 ### Step 1: コンテキスト取得
-get_task_brief(task_id: "${task_id}") を呼び出して、タスクの全コンテキスト（要求・要件・仕様・設計）を取得してください。
+get_implementation_brief(node_id: "${node_id}") を呼び出して、全コンテキスト（要求・要件・仕様・設計）を取得してください。
 
 ### Step 2: 実装計画の提示
 コンテキストを読んだ上で、何をどう実装するか計画をユーザーに提示してください。
 ユーザーの承認を待ってから実装に進んでください。
 
 ### Step 3: ブランチ作成と実装
-- git checkout -b feature/cddai-${task_id.slice(0, 8)} でブランチを作成
+- git checkout -b feature/cddai-${node_id.slice(0, 8)} でブランチを作成
 - コンテキストに基づいてコードを実装
 - 適切な粒度でコミット
 
 ### Step 4: PR作成
 - gh pr create でPRを作成
-- PRのタイトルにタスク名を含める
+- PRのタイトルに実装内容を含める
 - PRの本文に要件・仕様の概要を含める
 
 ### Step 5: CddAIへの登録
-- create_node(type:"code", parent_id:"${task_id}", project_id:"${project_id}", title:"PR #番号", content:PR_URL) でcodeノードを登録
-- 必要に応じて update_node でタスクの経緯メモにPR URLを追記
+- create_node(type:"code", parent_id:"${node_id}", project_id:"${project_id}", title:"PR #番号", content:PR_URL) でcodeノードを登録
+- 必要に応じて update_node で経緯メモにPR URLを追記
 
 ### Step 6: 完了報告
 実装内容のサマリーとPR URLをユーザーに報告してください。
 
 ## 重要な注意事項
 - Step 2でユーザーの承認を得てから実装に進むこと
-- 実装はget_task_briefで取得したコンテキストに忠実に行うこと
+- 実装はget_implementation_briefで取得したコンテキストに忠実に行うこと
 - PRを作成したら必ずcodeノードとしてCddAIに登録すること`,
           },
         },
@@ -843,13 +784,13 @@ server.registerTool(
       stakeholders: z.string().optional().describe("ステークホルダー（任意）"),
       constraints: z.string().optional().describe("技術的制約（任意）"),
       active_lanes: z
-        .array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"]))
+        .array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"]))
         .optional()
         .describe("使用するレーン（省略時は全レーン）"),
     },
   },
   safeHandler(async ({ name, purpose, scope, stakeholders, constraints, active_lanes }) => {
-    const defaultLanes = ["need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"];
+    const defaultLanes = ["need", "req", "spec", "basic_design", "detail_design", "code"];
     const project = await apiClient.createProject({
       name,
       purpose,
@@ -927,8 +868,8 @@ ${Object.entries(allowedMap).filter(([, v]) => (v as string[]).length > 0).map((
 - create_node の parent_id には **overview_id** を指定
 - 会話から明確に読み取れるものだけ抽出し、推測で追加しない
 
-### Step 4: 下位ノードの作成（要件→仕様→基本設計→詳細設計→タスクの順）
-各needから順番にreq→spec→basic_design→detail_design→taskを作成してください。
+### Step 4: 下位ノードの作成（要件→仕様→基本設計→詳細設計の順）
+各needから順番にreq→spec→basic_design→detail_designを作成してください。
 - 各ノードのparent_idには直接の親ノードIDを指定（needのIDをreqのparent_idに、reqのIDをspecのparent_idに、等）
 - basic_designにはAPIインターフェース、DBテーブル定義、画面設計、システム構成を記述
 - detail_designにはクラス設計、シーケンス、アルゴリズム、内部処理フローを記述
@@ -945,7 +886,7 @@ Web UIでの確認URL: http://localhost:3000/projects/{project_id}
 - **specノード**: parent_id = 親reqのID
 - **basic_designノード**: parent_id = 親specのID
 - **detail_designノード**: parent_id = 親basic_designのID
-- **taskノード**: parent_id = 親detail_designのID
+- **codeノード**: parent_id = 親detail_designのID
 - **絶対にすべてのノードをoverviewに紐づけないでください**
 
 ## 重要な注意事項
@@ -964,31 +905,25 @@ server.registerTool(
   "register_code",
   {
     description:
-      "タスクノードにコードリンク（PR URLやコミットURL）を登録する。codeノードを作成しタスクにリンクする。",
+      "親ノードにコードリンク（PR URLやコミットURL）を登録する。codeノードを作成し親ノードにリンクする。",
     annotations: {
       title: "コードリンク登録",
     },
     inputSchema: {
-      task_id: z.string().uuid().describe("タスクノードID"),
+      parent_id: z.string().uuid().describe("親ノードID（詳細設計など）"),
       title: z.string().describe("リンクタイトル（例: PR #123 ログイン機能）"),
       url: z.string().describe("PR URLやコミットURL"),
     },
   },
-  safeHandler(async ({ task_id, title, url }) => {
-    const task = await apiClient.getNode(task_id);
-    if (task.type !== "task") {
-      return {
-        content: [{ type: "text" as const, text: "エラー: 指定されたノードはtaskではありません" }],
-        isError: true,
-      };
-    }
+  safeHandler(async ({ parent_id, title, url }) => {
+    const parent = await apiClient.getNode(parent_id);
     const node = await apiClient.createNode({
-      project_id: task.project_id,
+      project_id: parent.project_id,
       type: "code",
       title,
       content: "",
       url,
-      parent_id: task_id,
+      parent_id,
     });
     return {
       content: [{ type: "text" as const, text: `コードリンクを登録しました。\n\n${JSON.stringify(node, null, 2)}` }],
@@ -1060,7 +995,7 @@ ${context}
 - specの親はreqノード
 - basic_designの親はspecノード（APIインターフェース、DBテーブル定義、画面設計を記述）
 - detail_designの親はbasic_designノード（クラス設計、シーケンス、アルゴリズムを記述）
-- taskの親はdetail_designノード
+- codeの親はdetail_designノード
 - ユーザーの承認なしにcreate_nodeを呼ばないでください
 
 ## 会話の記録

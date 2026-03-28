@@ -65,7 +65,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const childTypes = allowedMap[node.type] || [];
   const canCreateChild = childTypes.length > 0;
 
-  const hasUrl = node.type === "task" || node.type === "code";
+  const hasUrl = node.type === "code";
 
   const startEdit = () => {
     setEditTitle(node.title);

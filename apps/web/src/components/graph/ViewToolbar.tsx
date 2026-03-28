@@ -14,9 +14,10 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   task: { bg: "#FAECE7", border: "#D85A30", text: "#5a1f0a" },
   code: { bg: "#EAF3DE", border: "#639922", text: "#2a4a0a" },
   test: { bg: "#FBEAF0", border: "#D4537E", text: "#5a1a30" },
+  // 旧ノード用のフォールバック色は上記で対応
 };
 
-const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "task", "code", "test"];
+const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "code", "task", "test"];
 const SUMMARY_LANES = new Set(["overview", "need", "req"]);
 
 export function ViewToolbar() {

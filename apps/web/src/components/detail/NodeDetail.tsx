@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { NODE_LABELS, getAllowedChildTypeMap } from "@cddai/shared";
 import { useAppStore } from "@/lib/store";
-import { Pencil, Plus, MessageCircle, X, Check, Trash2, ExternalLink } from "lucide-react";
+import { Pencil, Plus, X, Check, Trash2, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";
 
@@ -25,7 +25,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const [editContent, setEditContent] = useState("");
   const [editUrl, setEditUrl] = useState("");
   const queryClient = useQueryClient();
-  const setSession = useAppStore((s) => s.setSession);
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
   const setFocusNodeId = useAppStore((s) => s.setFocusNodeId);
 
@@ -80,14 +79,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
       data.url = editUrl || null;
     }
     updateMutation.mutate(data);
-  };
-
-  const startSession = () => {
-    setSession(
-      nodeId,
-      node.type === "overview" ? "overview" : "node_session",
-      { id: node.id, type: node.type, title: node.title }
-    );
   };
 
   if (showCreateChild) {
@@ -205,13 +196,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
             <Plus size={16} /> 子ノードを手動で作成
           </button>
         )}
-        <button
-          onClick={startSession}
-          className="w-full flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition text-blue-600"
-        >
-          <MessageCircle size={16} /> AIとセッションを開始
-        </button>
-
         {node.type !== "overview" && (
           <>
             {confirmDelete ? (

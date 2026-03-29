@@ -46,7 +46,4 @@ export const api = {
   deleteEdge: (id: string) =>
     request<any>(`/edges/${id}`, { method: "DELETE" }),
 
-  // Chat
-  chat: (data: any) =>
-    request<any>("/chat", { method: "POST", body: JSON.stringify(data) }),
 };

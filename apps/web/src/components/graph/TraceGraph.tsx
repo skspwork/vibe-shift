@@ -42,17 +42,11 @@ interface Props {
 
 export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Props) {
   const { selectedNodeId, setSelectedNodeId, focusNodeId, setFocusNodeId } = useAppStore();
-  const { viewMode, hiddenLanes } = useAppStore();
+  const { hiddenLanes } = useAppStore();
 
-  // Filter nodes by view mode and hidden lanes
-  const SUMMARY_LANES = new Set(["overview", "need", "req"]);
   const filteredNodes = useMemo(() => {
-    return rawNodes.filter((n: any) => {
-      if (viewMode === "summary" && !SUMMARY_LANES.has(n.type)) return false;
-      if (hiddenLanes.has(n.type)) return false;
-      return true;
-    });
-  }, [rawNodes, viewMode, hiddenLanes]);
+    return rawNodes.filter((n: any) => !hiddenLanes.has(n.type));
+  }, [rawNodes, hiddenLanes]);
 
   const visibleNodeIds = useMemo(() => new Set(filteredNodes.map((n: any) => n.id)), [filteredNodes]);
 
@@ -106,9 +100,8 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
 
   // Visible lanes for layout
   const visibleLanes = useMemo(() => {
-    if (viewMode === "summary") return LANE_ORDER.filter((l) => SUMMARY_LANES.has(l) && !hiddenLanes.has(l));
     return LANE_ORDER.filter((l) => !hiddenLanes.has(l));
-  }, [viewMode, hiddenLanes]);
+  }, [hiddenLanes]);
 
   // Layout: group by type (lane), position horizontally
   const rfNodes: RFNode[] = useMemo(() => {

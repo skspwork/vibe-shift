@@ -14,61 +14,37 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   task: { bg: "#FAECE7", border: "#D85A30", text: "#5a1f0a" },
   code: { bg: "#EAF3DE", border: "#639922", text: "#2a4a0a" },
   test: { bg: "#FBEAF0", border: "#D4537E", text: "#5a1a30" },
-  // 旧ノード用のフォールバック色は上記で対応
 };
 
 const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "code", "task", "test"];
-const SUMMARY_LANES = new Set(["overview", "need", "req"]);
 
 export function ViewToolbar() {
-  const { viewMode, setViewMode, hiddenLanes, toggleLane } = useAppStore();
-
-  const toggleableLanes = viewMode === "summary"
-    ? LANE_ORDER.filter((l) => SUMMARY_LANES.has(l))
-    : LANE_ORDER;
+  const { hiddenLanes, toggleLane } = useAppStore();
 
   return (
     <div className="bg-white border-b px-3 py-1.5 flex items-center gap-4 shrink-0">
       <div className="flex items-center gap-1 text-xs">
-        {(["flow", "summary", "matrix"] as const).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            className={`px-2 py-0.5 rounded ${
-              viewMode === mode
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {mode === "flow" ? "フロー" : mode === "summary" ? "サマリー" : "マトリクス"}
-          </button>
-        ))}
+        {LANE_ORDER.map((lane) => {
+          const colors = NODE_COLORS[lane];
+          const hidden = hiddenLanes.has(lane);
+          return (
+            <button
+              key={lane}
+              onClick={() => toggleLane(lane)}
+              className={`px-2 py-0.5 rounded border transition ${
+                hidden ? "opacity-40 bg-gray-50" : ""
+              }`}
+              style={{
+                borderColor: colors.border,
+                backgroundColor: hidden ? undefined : colors.bg,
+                color: colors.text,
+              }}
+            >
+              {NODE_LABELS[lane] || lane}
+            </button>
+          );
+        })}
       </div>
-
-      {viewMode !== "matrix" && (
-        <div className="flex items-center gap-1 text-xs border-l pl-4">
-          {toggleableLanes.map((lane) => {
-            const colors = NODE_COLORS[lane];
-            const hidden = hiddenLanes.has(lane);
-            return (
-              <button
-                key={lane}
-                onClick={() => toggleLane(lane)}
-                className={`px-2 py-0.5 rounded border transition ${
-                  hidden ? "opacity-40 bg-gray-50" : ""
-                }`}
-                style={{
-                  borderColor: colors.border,
-                  backgroundColor: hidden ? undefined : colors.bg,
-                  color: colors.text,
-                }}
-              >
-                {NODE_LABELS[lane] || lane}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

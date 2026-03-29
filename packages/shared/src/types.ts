@@ -7,7 +7,6 @@ import type {
   CreateNodeSchema,
   UpdateNodeSchema,
   CreateEdgeSchema,
-  ChatRequestSchema,
 } from "./schemas.js";
 
 export type NodeTypeValue = z.infer<typeof NodeTypeSchema>;
@@ -17,7 +16,6 @@ export type CreateProject = z.infer<typeof CreateProjectSchema>;
 export type CreateNode = z.infer<typeof CreateNodeSchema>;
 export type UpdateNode = z.infer<typeof UpdateNodeSchema>;
 export type CreateEdge = z.infer<typeof CreateEdgeSchema>;
-export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 export interface Project {
   id: string;

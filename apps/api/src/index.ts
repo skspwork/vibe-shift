@@ -6,7 +6,6 @@ import projects from "./routes/projects.js";
 import nodes from "./routes/nodes.js";
 import edges from "./routes/edges.js";
 import graph from "./routes/graph.js";
-import chat from "./routes/chat.js";
 import conversations from "./routes/conversations.js";
 import { db, schema } from "./db/index.js";
 import { sql } from "drizzle-orm";
@@ -79,7 +78,6 @@ app.route("/projects", projects);
 app.route("/nodes", nodes);
 app.route("/edges", edges);
 app.route("/projects", graph);
-app.route("/chat", chat);
 app.route("/conversations", conversations);
 
 app.get("/", (c) => c.json({ status: "ok", service: "CddAI API" }));

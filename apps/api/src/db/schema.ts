@@ -4,6 +4,7 @@ export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   active_lanes: text("active_lanes").notNull(), // JSON array
+  node_instructions: text("node_instructions"), // JSON Record<string, string>
   methodology: text("methodology").notNull().default("strict"),
   created_at: text("created_at").notNull(),
 });

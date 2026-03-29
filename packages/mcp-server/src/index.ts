@@ -107,6 +107,12 @@ server.registerPrompt(
     const overviewNode = graph.nodes?.find((n: any) => n.type === "overview");
     const overviewId = overviewNode?.id || "（不明）";
 
+    const nodeInstructions = project.node_instructions || {};
+    const instructionsBlock = Object.entries(nodeInstructions)
+      .filter(([, v]) => (v as string).trim())
+      .map(([type, instruction]) => `- ${type}: ${instruction}`)
+      .join("\n");
+
     return {
       messages: [
         {
@@ -122,6 +128,7 @@ server.registerPrompt(
 
 ## 開発手法のガイダンス
 ${GUIDANCE_TEXT}
+${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructionsBlock}\n` : ""}
 
 ## overviewノードID
 ${overviewId}
@@ -181,12 +188,19 @@ server.registerPrompt(
   async ({ project_id, node_id }) => {
     const node = await apiClient.getNode(node_id);
     const context = await apiClient.getNodeContext(node_id);
+    const project = await apiClient.getProject(project_id);
     const childTypeMap = getChildTypeMap();
     const childTypes = childTypeMap[node.type] || [];
     const childTypeLabels: Record<string, string> = {
       need: "要求", req: "要件", spec: "仕様",
       basic_design: "基本設計", detail_design: "詳細設計", code: "コード",
     };
+
+    const nodeInstructions = project.node_instructions || {};
+    const instructionsBlock = Object.entries(nodeInstructions)
+      .filter(([, v]) => (v as string).trim())
+      .map(([type, instruction]) => `- ${type}: ${instruction}`)
+      .join("\n");
 
     return {
       messages: [
@@ -211,7 +225,7 @@ ${context.context}
 
 ## 推奨する子ノード種別
 ${childTypes.map((t) => `- ${t}（${childTypeLabels[t] || t}）`).join("\n")}
-
+${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructionsBlock}\n` : ""}
 ## ワークフロー（必ずこの順序で進めてください）
 
 ### Phase 1: ヒアリング
@@ -968,6 +982,12 @@ server.registerPrompt(
     const { context } = await apiClient.getProjectContext(project_id);
     const project = await apiClient.getProject(project_id);
 
+    const nodeInstructions = project.node_instructions || {};
+    const instructionsBlock = Object.entries(nodeInstructions)
+      .filter(([, v]) => (v as string).trim())
+      .map(([type, instruction]) => `- ${type}: ${instruction}`)
+      .join("\n");
+
     return {
       messages: [
         {
@@ -986,7 +1006,7 @@ server.registerPrompt(
 
 ## 現在のプロジェクト状態
 ${context}
-
+${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructionsBlock}\n` : ""}
 ## ノード作成ルール
 - コンテンツはマークダウン形式で記述してください
 - parent_idには適切な親ノードのIDを指定してください

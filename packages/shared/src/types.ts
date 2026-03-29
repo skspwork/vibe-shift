@@ -23,6 +23,7 @@ export interface Project {
   id: string;
   name: string;
   active_lanes: string[];
+  node_instructions?: Record<string, string>;
   created_at: string;
 }
 

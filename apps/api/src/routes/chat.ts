@@ -37,6 +37,15 @@ app.post("/", async (c) => {
   let aiResponse: { response: string };
   let createdNodes: any[] = [];
 
+  // Fetch project for node_instructions
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(eq(schema.projects.id, parsed.project_id));
+  const nodeInstructions = project?.node_instructions
+    ? JSON.parse(project.node_instructions)
+    : undefined;
+
   if (parsed.session_type === "consult") {
     // ── Consult mode: project-wide conversation ──
     const projectContext = await getProjectContext(parsed.project_id);
@@ -44,6 +53,7 @@ app.post("/", async (c) => {
       projectContext,
       message: parsed.message,
       history: parsed.history,
+      nodeInstructions,
     });
 
     // Parse JSON nodes — each node specifies its own parent_id
@@ -148,6 +158,7 @@ app.post("/", async (c) => {
       message: parsed.message,
       parentType,
       history: parsed.history,
+      nodeInstructions,
     });
 
     // Parse JSON nodes from response

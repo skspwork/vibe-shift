@@ -77,6 +77,20 @@ export const NODE_LABELS: Record<string, string> = {
   test: "テスト（旧）",
 };
 
+export const DEFAULT_NODE_INSTRUCTIONS: Record<string, string> = {
+  need: "ステークホルダーの視点で「誰が・何を・なぜ」必要としているかを記述",
+  req: "要求を満たすために必要な機能要件・非機能要件を具体的に記述",
+  spec: "要件を実現するための技術仕様・入出力・制約条件を記述",
+  basic_design: "API定義、DBテーブル設計、画面遷移図をMermaid記法で記述",
+  detail_design: "クラス図、シーケンス図、アルゴリズムをMermaid記法で記述",
+  code: "PR URL、実装の概要、対応するブランチ名を記述",
+};
+
+export const NodeInstructionsSchema = z.record(
+  z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"]),
+  z.string()
+).optional();
+
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(100),
   purpose: z.string().min(1),
@@ -84,6 +98,7 @@ export const CreateProjectSchema = z.object({
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
   active_lanes: z.array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"])),
+  node_instructions: NodeInstructionsSchema,
 });
 
 export const UpdateProjectSchema = z.object({
@@ -93,6 +108,7 @@ export const UpdateProjectSchema = z.object({
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
   active_lanes: z.array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"])).optional(),
+  node_instructions: NodeInstructionsSchema,
 });
 
 export const CreateNodeSchema = z.object({

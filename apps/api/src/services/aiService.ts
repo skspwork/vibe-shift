@@ -8,13 +8,21 @@ interface ChatParams {
   message: string;
   parentType: string;
   history?: { role: "user" | "assistant"; content: string }[];
+  nodeInstructions?: Record<string, string>;
 }
 
 export async function chat(params: ChatParams) {
-  const { context, message, parentType, history = [] } = params;
+  const { context, message, parentType, history = [], nodeInstructions } = params;
   const childTypeMap = getChildTypeMap();
   const childTypes = childTypeMap[parentType] || [];
   const childLabels = childTypes.map((t) => `${NODE_LABELS[t]}(${t})`).join("、");
+
+  const instructionsBlock = nodeInstructions
+    ? Object.entries(nodeInstructions)
+        .filter(([, v]) => v.trim())
+        .map(([type, instruction]) => `- ${NODE_LABELS[type] || type}(${type}): ${instruction}`)
+        .join("\n")
+    : "";
 
   const systemPrompt = `あなたはAIドリブン開発トレーサビリティ管理システム「CddAI」のアシスタントです。
 ユーザーとの対話を通じて、開発プロジェクトの要求・要件・仕様・基本設計・詳細設計のノードを作成・整理します。
@@ -27,7 +35,7 @@ ${GUIDANCE_TEXT}
 ${context}
 
 あなたが作成できるノードの種別: ${childLabels || "（子ノードなし）"}
-
+${instructionsBlock ? `\n【ノード種別ごとの記述ルール】\n${instructionsBlock}\n` : ""}
 【重要なルール】
 - ノードを提案する場合は必ず以下のJSON形式を含めてください
 - JSON部分は \`\`\`json と \`\`\` で囲んでください
@@ -70,11 +78,19 @@ interface ConsultParams {
   projectContext: string;
   message: string;
   history?: { role: "user" | "assistant"; content: string }[];
+  nodeInstructions?: Record<string, string>;
 }
 
 export async function consult(params: ConsultParams) {
-  const { projectContext, message, history = [] } = params;
+  const { projectContext, message, history = [], nodeInstructions } = params;
   const allowedMap = getAllowedChildTypeMap();
+
+  const instructionsBlock = nodeInstructions
+    ? Object.entries(nodeInstructions)
+        .filter(([, v]) => v.trim())
+        .map(([type, instruction]) => `- ${NODE_LABELS[type] || type}(${type}): ${instruction}`)
+        .join("\n")
+    : "";
 
   // Build allowed hierarchy description
   const hierarchyDesc = Object.entries(allowedMap)
@@ -99,7 +115,7 @@ ${hierarchyDesc}
 
 【現在のプロジェクト状態】
 ${projectContext}
-
+${instructionsBlock ? `\n【ノード種別ごとの記述ルール】\n${instructionsBlock}\n` : ""}
 【重要なルール】
 1. ユーザーの要望に対して、まず既存ノードとの重複・矛盾がないか確認してください
 2. 重複や関連がある場合は具体的に指摘し、統合・分離・修正を提案してください

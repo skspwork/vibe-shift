@@ -3,10 +3,10 @@
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { LANE_TYPES, NODE_LABELS } from "@cddai/shared";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ProjectFormFields, type ProjectFormValues } from "./ProjectFormFields";
 
 interface Props {
   project: any;
@@ -27,7 +27,6 @@ export function ProjectSettings({ project, onClose }: Props) {
     },
   });
 
-  // Parse overview node content to extract fields
   const parseOverviewContent = (content: string) => {
     const fields: Record<string, string> = {};
     for (const line of content.split("\n")) {
@@ -44,20 +43,20 @@ export function ProjectSettings({ project, onClose }: Props) {
     setValue,
     watch,
     reset,
-  } = useForm({
+  } = useForm<ProjectFormValues>({
     defaultValues: {
       name: "",
       purpose: "",
       scope: "",
       stakeholders: "",
       constraints: "",
-      active_lanes: [] as string[],
+      active_lanes: [],
+      node_instructions: {},
     },
   });
 
   useEffect(() => {
     if (!project) return;
-    // Fetch overview node to get purpose/scope/etc
     api.getGraph(project.id).then((graph) => {
       const overview = graph.nodes.find((n: any) => n.type === "overview");
       const fields = overview ? parseOverviewContent(overview.content || "") : {};
@@ -68,6 +67,7 @@ export function ProjectSettings({ project, onClose }: Props) {
         stakeholders: fields["ステークホルダー"] || "",
         constraints: fields["技術的制約"] || "",
         active_lanes: project.active_lanes || [],
+        node_instructions: project.node_instructions || {},
       });
     });
   }, [project, reset]);
@@ -82,13 +82,14 @@ export function ProjectSettings({ project, onClose }: Props) {
   });
 
   const activeLanes = watch("active_lanes");
+  const nodeInstructions = watch("node_instructions");
 
   const toggleLane = (lane: string) => {
     const current = activeLanes || [];
-    if (current.includes(lane as any)) {
-      setValue("active_lanes", current.filter((l) => l !== lane) as any, { shouldDirty: true });
+    if (current.includes(lane)) {
+      setValue("active_lanes", current.filter((l) => l !== lane), { shouldDirty: true });
     } else {
-      setValue("active_lanes", [...current, lane] as any, { shouldDirty: true });
+      setValue("active_lanes", [...current, lane], { shouldDirty: true });
     }
   };
 
@@ -103,73 +104,16 @@ export function ProjectSettings({ project, onClose }: Props) {
         </div>
 
         <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              システム名 <span className="text-red-500">*</span>
-            </label>
-            <input
-              {...register("name", { required: "システム名は必須です" })}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-            {errors.name && (
-              <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">目的・背景</label>
-            <textarea
-              {...register("purpose")}
-              rows={3}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">スコープ</label>
-            <textarea
-              {...register("scope")}
-              rows={2}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">ステークホルダー</label>
-            <input
-              {...register("stakeholders")}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">技術的制約</label>
-            <textarea
-              {...register("constraints")}
-              rows={2}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">使用するレーン</label>
-            <div className="flex flex-wrap gap-2">
-              {LANE_TYPES.map((lane) => (
-                <button
-                  key={lane}
-                  type="button"
-                  onClick={() => toggleLane(lane)}
-                  className={`px-3 py-1.5 rounded-lg text-sm border transition ${
-                    activeLanes?.includes(lane as any)
-                      ? "bg-blue-50 border-blue-400 text-blue-700"
-                      : "bg-gray-50 border-gray-200 text-gray-500"
-                  }`}
-                >
-                  {NODE_LABELS[lane]}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ProjectFormFields
+            register={register}
+            errors={errors}
+            activeLanes={activeLanes}
+            nodeInstructions={nodeInstructions}
+            onToggleLane={toggleLane}
+            onChangeNodeInstruction={(lane, value) => {
+              setValue("node_instructions", { ...nodeInstructions, [lane]: value }, { shouldDirty: true });
+            }}
+          />
 
           <div className="flex gap-3 pt-4">
             <button

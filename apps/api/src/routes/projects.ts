@@ -11,6 +11,7 @@ app.get("/", async (c) => {
   const projects = rows.map((r) => ({
     ...r,
     active_lanes: JSON.parse(r.active_lanes),
+    node_instructions: r.node_instructions ? JSON.parse(r.node_instructions) : undefined,
   }));
   return c.json(projects);
 });
@@ -26,6 +27,7 @@ app.post("/", async (c) => {
     id: projectId,
     name: parsed.name,
     active_lanes: JSON.stringify(parsed.active_lanes),
+    node_instructions: parsed.node_instructions ? JSON.stringify(parsed.node_instructions) : null,
     created_at: now,
   });
 
@@ -56,6 +58,7 @@ app.post("/", async (c) => {
       id: projectId,
       name: parsed.name,
       active_lanes: parsed.active_lanes,
+      node_instructions: parsed.node_instructions,
       created_at: now,
       overview_id: overviewId,
     },
@@ -78,6 +81,8 @@ app.patch("/:id", async (c) => {
   if (parsed.name !== undefined) updates.name = parsed.name;
   if (parsed.active_lanes !== undefined)
     updates.active_lanes = JSON.stringify(parsed.active_lanes);
+  if (parsed.node_instructions !== undefined)
+    updates.node_instructions = parsed.node_instructions ? JSON.stringify(parsed.node_instructions) : null;
 
   if (Object.keys(updates).length > 0) {
     await db
@@ -140,7 +145,11 @@ app.patch("/:id", async (c) => {
     .select()
     .from(schema.projects)
     .where(eq(schema.projects.id, id));
-  return c.json({ ...updated, active_lanes: JSON.parse(updated.active_lanes) });
+  return c.json({
+    ...updated,
+    active_lanes: JSON.parse(updated.active_lanes),
+    node_instructions: updated.node_instructions ? JSON.parse(updated.node_instructions) : undefined,
+  });
 });
 
 app.get("/:id", async (c) => {
@@ -150,7 +159,11 @@ app.get("/:id", async (c) => {
     .from(schema.projects)
     .where(eq(schema.projects.id, id));
   if (!row) return c.json({ error: "Not found" }, 404);
-  return c.json({ ...row, active_lanes: JSON.parse(row.active_lanes) });
+  return c.json({
+    ...row,
+    active_lanes: JSON.parse(row.active_lanes),
+    node_instructions: row.node_instructions ? JSON.parse(row.node_instructions) : undefined,
+  });
 });
 
 app.delete("/:id", async (c) => {

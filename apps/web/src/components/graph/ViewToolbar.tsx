@@ -2,6 +2,7 @@
 
 import { useAppStore } from "@/lib/store";
 import { NODE_LABELS } from "@cddai/shared";
+import { SearchPanel } from "./SearchPanel";
 
 const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   overview: { bg: "#2E4057", border: "#1a2a3a", text: "#ffffff" },
@@ -18,11 +19,12 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
 
 const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "code", "task", "test"];
 
-export function ViewToolbar() {
+export function ViewToolbar({ projectId }: { projectId: string }) {
   const { hiddenLanes, toggleLane } = useAppStore();
 
   return (
     <div className="bg-white border-b px-3 py-1.5 flex items-center gap-4 shrink-0">
+      <SearchPanel projectId={projectId} />
       <div className="flex items-center gap-1 text-xs">
         {LANE_ORDER.map((lane) => {
           const colors = NODE_COLORS[lane];

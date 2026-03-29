@@ -553,20 +553,33 @@ server.registerTool(
 server.registerTool(
   "search_nodes",
   {
-    description: "プロジェクト内のノードをテキスト検索する",
+    description:
+      "プロジェクト内のノードをFTS5全文検索する。BM25ランキングで関連度順にソートされる。" +
+      "各結果には階層パス（例: 要求>要件>仕様）が付与され、ノードの位置を即座に把握できる。" +
+      "parent_idを指定すると、そのノードの子孫のみに絞り込める。",
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
-      query: z.string().describe("検索クエリ"),
+      query: z.string().optional().describe("検索クエリ（空の場合はフィルター条件のみで検索）"),
       types: z
         .array(
           z.enum(["overview", "need", "req", "spec", "basic_design", "detail_design", "code"])
         )
         .optional()
         .describe("フィルタするノード種別の配列（任意）"),
+      parent_id: z
+        .string()
+        .uuid()
+        .optional()
+        .describe("指定ノードの子孫のみに絞り込む（任意）"),
+      include_path: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("階層パスを結果に含めるか（デフォルト: true）"),
     },
   },
-  safeHandler(async ({ project_id, query, types }) => {
-    const results = await apiClient.searchNodes(project_id, query, types);
+  safeHandler(async ({ project_id, query, types, parent_id, include_path }) => {
+    const results = await apiClient.searchNodes(project_id, query || "", types, parent_id, include_path);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }],
     };

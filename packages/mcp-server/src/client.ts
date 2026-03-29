@@ -31,9 +31,11 @@ export const apiClient = {
     request<any>(`/nodes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteNode: (id: string) =>
     request<any>(`/nodes/${id}`, { method: "DELETE" }),
-  searchNodes: (projectId: string, query: string, types?: string[]) => {
+  searchNodes: (projectId: string, query: string, types?: string[], parentId?: string, includePath?: boolean) => {
     const params = new URLSearchParams({ project_id: projectId, query });
     if (types?.length) params.set("types", types.join(","));
+    if (parentId) params.set("parent_id", parentId);
+    if (includePath !== undefined) params.set("include_path", String(includePath));
     return request<any[]>(`/nodes/search?${params}`);
   },
 
@@ -55,10 +57,6 @@ export const apiClient = {
   // Project context
   getProjectContext: (projectId: string) =>
     request<{ context: string }>(`/projects/${projectId}/context`),
-
-  // Chat
-  chat: (data: { project_id: string; message: string; session_type: string; node_id?: string; conversation_id?: string; history?: { role: string; content: string }[] }) =>
-    request<any>("/chat", { method: "POST", body: JSON.stringify(data) }),
 
   // Edges
   createEdge: (data: any) =>

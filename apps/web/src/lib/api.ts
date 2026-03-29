@@ -40,6 +40,14 @@ export const api = {
     request<any>(`/nodes/${id}/trace?direction=${direction}`),
   getNodeContext: (id: string) => request<any>(`/nodes/${id}/context`),
 
+  // Search
+  searchNodes: (projectId: string, query: string, types?: string[]) => {
+    const params = new URLSearchParams({ project_id: projectId, query });
+    if (types?.length) params.set("types", types.join(","));
+    params.set("include_path", "true");
+    return request<any[]>(`/nodes/search?${params}`);
+  },
+
   // Edges
   createEdge: (data: any) =>
     request<any>("/edges", { method: "POST", body: JSON.stringify(data) }),

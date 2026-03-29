@@ -1,11 +1,92 @@
 import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
-import { eq, like, and, inArray } from "drizzle-orm";
-import { db, schema } from "../db/index.js";
-import { CreateNodeSchema, UpdateNodeSchema } from "@cddai/shared";
+import { eq } from "drizzle-orm";
+import { db, rawDb, schema } from "../db/index.js";
+import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS } from "@cddai/shared";
 import { getNodeContext, getNodeTrace } from "../services/contextService.js";
 
 const app = new Hono();
+
+// ─── FTS helpers ───
+
+function ftsInsert(nodeId: string, title: string, content: string) {
+  rawDb.prepare("INSERT INTO nodes_fts(node_id, title, content) VALUES(?, ?, ?)").run(nodeId, title, content);
+}
+
+function ftsUpdate(nodeId: string, title: string, content: string) {
+  rawDb.prepare("DELETE FROM nodes_fts WHERE node_id = ?").run(nodeId);
+  rawDb.prepare("INSERT INTO nodes_fts(node_id, title, content) VALUES(?, ?, ?)").run(nodeId, title, content);
+}
+
+function ftsDelete(nodeId: string) {
+  rawDb.prepare("DELETE FROM nodes_fts WHERE node_id = ?").run(nodeId);
+}
+
+// ─── Hierarchy path helper ───
+
+function buildNodePaths(projectId: string): Map<string, { titles: string[]; types: string[] }> {
+  const allNodes = rawDb.prepare("SELECT id, title, type FROM nodes WHERE project_id = ?").all(projectId) as any[];
+  const allEdges = rawDb.prepare(
+    "SELECT from_node_id, to_node_id FROM edges WHERE link_type = 'derives' AND from_node_id IN (SELECT id FROM nodes WHERE project_id = ?) AND to_node_id IN (SELECT id FROM nodes WHERE project_id = ?)"
+  ).all(projectId, projectId) as any[];
+
+  const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+  const parentMap = new Map<string, string>();
+  for (const e of allEdges) {
+    parentMap.set(e.to_node_id, e.from_node_id);
+  }
+
+  const pathCache = new Map<string, { titles: string[]; types: string[] }>();
+
+  function getPath(nodeId: string): { titles: string[]; types: string[] } {
+    if (pathCache.has(nodeId)) return pathCache.get(nodeId)!;
+    const node = nodeMap.get(nodeId);
+    if (!node) return { titles: [], types: [] };
+
+    const parentId = parentMap.get(nodeId);
+    if (!parentId) {
+      const result = { titles: [node.title], types: [node.type] };
+      pathCache.set(nodeId, result);
+      return result;
+    }
+    const parentPath = getPath(parentId);
+    const result = {
+      titles: [...parentPath.titles, node.title],
+      types: [...parentPath.types, node.type],
+    };
+    pathCache.set(nodeId, result);
+    return result;
+  }
+
+  for (const node of allNodes) {
+    getPath(node.id);
+  }
+  return pathCache;
+}
+
+function getDescendantIds(nodeId: string): Set<string> {
+  const allEdges = rawDb.prepare("SELECT from_node_id, to_node_id FROM edges WHERE link_type = 'derives'").all() as any[];
+  const childMap = new Map<string, string[]>();
+  for (const e of allEdges) {
+    const children = childMap.get(e.from_node_id) || [];
+    children.push(e.to_node_id);
+    childMap.set(e.from_node_id, children);
+  }
+
+  const result = new Set<string>();
+  const queue = [nodeId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (result.has(current)) continue;
+    result.add(current);
+    for (const child of childMap.get(current) || []) {
+      queue.push(child);
+    }
+  }
+  return result;
+}
+
+// ─── Routes ───
 
 app.post("/", async (c) => {
   const body = await c.req.json();
@@ -36,6 +117,9 @@ app.post("/", async (c) => {
     created_at: now,
   });
 
+  // Sync FTS
+  ftsInsert(nodeId, parsed.title, parsed.content);
+
   const [node] = await db
     .select()
     .from(schema.nodes)
@@ -47,24 +131,60 @@ app.post("/", async (c) => {
 app.get("/search", async (c) => {
   const projectId = c.req.query("project_id");
   const query = c.req.query("query") || "";
-  const types = c.req.query("types")?.split(",");
+  const types = c.req.query("types")?.split(",").filter(Boolean);
+  const parentId = c.req.query("parent_id");
+  const includePath = c.req.query("include_path") !== "false";
 
   if (!projectId) return c.json({ error: "project_id required" }, 400);
 
-  let results = await db
-    .select()
-    .from(schema.nodes)
-    .where(eq(schema.nodes.project_id, projectId));
+  let results: any[];
 
   if (query) {
-    results = results.filter(
-      (n) =>
-        n.title.toLowerCase().includes(query.toLowerCase()) ||
-        n.content.toLowerCase().includes(query.toLowerCase())
-    );
+    // FTS5 search with BM25 ranking
+    const ftsQuery = query.split(/\s+/).map((t) => `"${t}"`).join(" OR ");
+    results = rawDb.prepare(`
+      SELECT n.*, bm25(nodes_fts) as rank
+      FROM nodes_fts fts
+      JOIN nodes n ON n.id = fts.node_id
+      WHERE nodes_fts MATCH ? AND n.project_id = ?
+      ORDER BY rank
+    `).all(ftsQuery, projectId) as any[];
+
+    // Merge title LIKE matches that FTS may have missed
+    const ftsIds = new Set(results.map((r) => r.id));
+    const likePattern = `%${query}%`;
+    const titleMatches = rawDb.prepare(
+      "SELECT * FROM nodes WHERE project_id = ? AND title LIKE ?"
+    ).all(projectId, likePattern) as any[];
+    for (const m of titleMatches) {
+      if (!ftsIds.has(m.id)) results.push(m);
+    }
+  } else {
+    results = rawDb.prepare("SELECT * FROM nodes WHERE project_id = ?").all(projectId) as any[];
   }
+
+  // Type filter
   if (types && types.length > 0) {
     results = results.filter((n) => types.includes(n.type));
+  }
+
+  // Parent filter (descendants only)
+  if (parentId) {
+    const descendantIds = getDescendantIds(parentId);
+    results = results.filter((n) => descendantIds.has(n.id));
+  }
+
+  // Add hierarchy path
+  if (includePath && results.length > 0) {
+    const paths = buildNodePaths(projectId);
+    results = results.map((n) => {
+      const path = paths.get(n.id);
+      return {
+        ...n,
+        path: path ? path.titles.join(" > ") : n.title,
+        path_types: path ? path.types.map((t: string) => NODE_LABELS[t] || t).join(" > ") : NODE_LABELS[n.type] || n.type,
+      };
+    });
   }
 
   return c.json(results);
@@ -95,6 +215,12 @@ app.patch("/:id", async (c) => {
     .select()
     .from(schema.nodes)
     .where(eq(schema.nodes.id, id));
+
+  // Sync FTS
+  if (node) {
+    ftsUpdate(id, node.title, node.content);
+  }
+
   return c.json(node);
 });
 
@@ -130,13 +256,14 @@ app.delete("/:id", async (c) => {
     }
   }
 
-  // Delete all in order: edges -> nodes
+  // Delete all in order: edges -> nodes -> FTS
   for (const nodeId of toDelete) {
     await db.delete(schema.edges).where(eq(schema.edges.from_node_id, nodeId));
     await db.delete(schema.edges).where(eq(schema.edges.to_node_id, nodeId));
   }
   for (const nodeId of toDelete) {
     await db.delete(schema.nodes).where(eq(schema.nodes.id, nodeId));
+    ftsDelete(nodeId);
   }
 
   return c.json({ ok: true, deleted_count: toDelete.size });

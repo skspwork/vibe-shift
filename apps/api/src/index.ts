@@ -63,7 +63,22 @@ function initDb() {
       content TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
+      node_id UNINDEXED,
+      title,
+      content,
+      tokenize='unicode61'
+    );
   `);
+
+  // Rebuild FTS index from existing nodes (idempotent)
+  const count = sqlite.prepare("SELECT COUNT(*) as c FROM nodes_fts").get() as any;
+  const nodeCount = sqlite.prepare("SELECT COUNT(*) as c FROM nodes").get() as any;
+  if (count.c !== nodeCount.c) {
+    sqlite.exec("DELETE FROM nodes_fts");
+    sqlite.exec("INSERT INTO nodes_fts(node_id, title, content) SELECT id, title, content FROM nodes");
+  }
 
   sqlite.close();
 }

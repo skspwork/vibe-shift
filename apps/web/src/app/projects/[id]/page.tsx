@@ -51,7 +51,7 @@ export default function ProjectPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col">
-          <ViewToolbar />
+          <ViewToolbar projectId={projectId} />
           <div className="flex-1 relative">
             {graph ? (
               <TraceGraph

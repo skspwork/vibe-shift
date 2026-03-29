@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "cddai"
+  ],
+  "enableAllProjectMcpServers": true
+}

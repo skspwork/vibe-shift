@@ -8,7 +8,7 @@ import { ViewToolbar } from "@/components/graph/ViewToolbar";
 import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ProjectSettings } from "@/components/setup/ProjectSettings";
 import { useAppStore } from "@/lib/store";
-import { Settings } from "lucide-react";
+import { Settings, Download } from "lucide-react";
 import { useState } from "react";
 
 export default function ProjectPage() {
@@ -38,6 +38,13 @@ export default function ProjectPage() {
         {project && (
           <>
             <span className="text-gray-500">{project.name}</span>
+            <button
+              onClick={() => api.exportProject(projectId)}
+              className="ml-2 text-gray-400 hover:text-gray-600 transition"
+              title="HTMLエクスポート"
+            >
+              <Download size={16} />
+            </button>
             <button
               onClick={() => setShowSettings(true)}
               className="ml-2 text-gray-400 hover:text-gray-600 transition"

@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import { eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 import { CreateProjectSchema, UpdateProjectSchema } from "@cddai/shared";
+import { generateProjectHtml } from "../services/exportService.js";
 
 const app = new Hono();
 
@@ -163,6 +164,25 @@ app.get("/:id", async (c) => {
     ...row,
     active_lanes: JSON.parse(row.active_lanes),
     node_instructions: row.node_instructions ? JSON.parse(row.node_instructions) : undefined,
+  });
+});
+
+app.get("/:id/export", async (c) => {
+  const id = c.req.param("id");
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(eq(schema.projects.id, id));
+  if (!project) return c.json({ error: "Not found" }, 404);
+
+  const html = await generateProjectHtml(id, project.name);
+  const filename = `${project.name}.html`;
+
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    },
   });
 });
 

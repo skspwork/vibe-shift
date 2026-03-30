@@ -4,9 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { NODE_LABELS, getAllowedChildTypeMap } from "@cddai/shared";
 import { useAppStore } from "@/lib/store";
-import { Pencil, Plus, X, Check, Trash2, ExternalLink } from "lucide-react";
+import { Pencil, Plus, Trash2, ExternalLink, Eye } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";
+import { EditModal } from "./EditModal";
+import { PreviewModal } from "./PreviewModal";
 
 import { NodeCreateForm } from "../node/NodeCreateForm";
 import { Markdown } from "../ui/Markdown";
@@ -18,12 +20,10 @@ interface Props {
 }
 
 export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
-  const [editing, setEditing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showCreateChild, setShowCreateChild] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [editUrl, setEditUrl] = useState("");
   const queryClient = useQueryClient();
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
   const setFocusNodeId = useAppStore((s) => s.setFocusNodeId);
@@ -44,7 +44,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["node", nodeId] });
       onUpdate();
-      setEditing(false);
     },
   });
 
@@ -64,21 +63,9 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const childTypes = allowedMap[node.type] || [];
   const canCreateChild = childTypes.length > 0;
 
-  const hasUrl = node.type === "code";
-
-  const startEdit = () => {
-    setEditTitle(node.title);
-    setEditContent(node.content);
-    setEditUrl(node.url || "");
-    setEditing(true);
-  };
-
-  const saveEdit = () => {
-    const data: any = { title: editTitle, content: editContent };
-    if (hasUrl) {
-      data.url = editUrl || null;
-    }
-    updateMutation.mutate(data);
+  const handleEditSave = () => {
+    queryClient.invalidateQueries({ queryKey: ["node", nodeId] });
+    onUpdate();
   };
 
   if (showCreateChild) {
@@ -108,70 +95,52 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
         >
           {NODE_LABELS[node.type] || node.type}
         </span>
-        {!editing && (
+        <div className="flex items-center gap-1">
           <button
-            onClick={startEdit}
+            onClick={() => setShowPreviewModal(true)}
             className="text-gray-400 hover:text-gray-600"
+            title="プレビュー"
+          >
+            <Eye size={14} />
+          </button>
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="text-gray-400 hover:text-gray-600"
+            title="編集"
           >
             <Pencil size={14} />
           </button>
-        )}
+        </div>
       </div>
 
-      {editing ? (
-        <div className="space-y-3">
-          <input
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            className="w-full border rounded px-2 py-1 text-sm font-semibold"
-          />
-          <textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            rows={5}
-            className="w-full border rounded px-2 py-1 text-sm resize-none"
-          />
-          {hasUrl && (
-            <input
-              value={editUrl}
-              onChange={(e) => setEditUrl(e.target.value)}
-              placeholder="URL（チケットやPRのリンク）"
-              className="w-full border rounded px-2 py-1 text-sm"
-            />
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={saveEdit}
-              className="flex items-center gap-1 text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              <Check size={14} /> 保存
-            </button>
-            <button
-              onClick={() => setEditing(false)}
-              className="flex items-center gap-1 text-sm px-3 py-1 border rounded hover:bg-gray-50"
-            >
-              <X size={14} /> キャンセル
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <h2 className="font-bold text-lg">{node.title}</h2>
-          {node.url && (
-            <a
-              href={node.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
-            >
-              <ExternalLink size={14} />
-              {node.url}
-            </a>
-          )}
-          <Markdown className="text-sm text-gray-600">
-            {node.content}
-          </Markdown>
-        </>
+      <h2 className="font-bold text-lg">{node.title}</h2>
+      {node.url && (
+        <a
+          href={node.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+        >
+          <ExternalLink size={14} />
+          {node.url}
+        </a>
+      )}
+      <Markdown className="text-sm text-gray-600">
+        {node.content}
+      </Markdown>
+
+      {showEditModal && (
+        <EditModal
+          node={node}
+          onSave={handleEditSave}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
+      {showPreviewModal && (
+        <PreviewModal
+          node={node}
+          onClose={() => setShowPreviewModal(false)}
+        />
       )}
 
       <RationaleSection

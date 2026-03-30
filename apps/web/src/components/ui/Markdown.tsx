@@ -54,23 +54,16 @@ export function Markdown({ children, className = "" }: Props) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code({ className: codeClassName, children: codeChildren, ...rest }) {
-            const match = /language-(\w+)/.exec(codeClassName || "");
-            if (match && match[1] === "mermaid") {
+          pre({ children: preChildren, ...rest }) {
+            const child = preChildren as React.ReactElement<{ className?: string; children?: React.ReactNode }>;
+            if (child?.props?.className?.includes("language-mermaid")) {
               return (
                 <MermaidBlock
-                  code={String(codeChildren).replace(/\n$/, "")}
+                  code={String(child.props.children).replace(/\n$/, "")}
                 />
               );
             }
-            return (
-              <code className={codeClassName} {...rest}>
-                {codeChildren}
-              </code>
-            );
-          },
-          pre({ children: preChildren }) {
-            return <>{preChildren}</>;
+            return <pre {...rest}>{preChildren}</pre>;
           },
         }}
       >

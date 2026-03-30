@@ -54,12 +54,30 @@ export const ALLOWED_CHILD_MAP: Record<string, string[]> = {
   code: [],
 };
 
+export const HIERARCHY_ORDER = [
+  "overview", "need", "req", "spec", "basic_design", "detail_design", "code",
+] as const;
+
 export function getChildTypeMap(): Record<string, string[]> {
   return CHILD_TYPE_MAP;
 }
 
 export function getAllowedChildTypeMap(): Record<string, string[]> {
   return ALLOWED_CHILD_MAP;
+}
+
+/**
+ * 親タイプの直下に来るべきactiveなレーンタイプを返す。
+ * active_lanesに含まれないレーンはスキップされる。
+ */
+export function getNextActiveType(parentType: string, activeLanes: string[]): string | null {
+  const parentIdx = HIERARCHY_ORDER.indexOf(parentType as typeof HIERARCHY_ORDER[number]);
+  if (parentIdx < 0) return null;
+  for (let i = parentIdx + 1; i < HIERARCHY_ORDER.length; i++) {
+    const t = HIERARCHY_ORDER[i];
+    if (activeLanes.includes(t)) return t;
+  }
+  return null;
 }
 
 export const GUIDANCE_TEXT = "全レイヤー（要求→要件→仕様→基本設計→詳細設計）を順番に定義してください。各段階を丁寧に掘り下げてからノードを作成してください。";

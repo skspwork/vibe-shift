@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "mcp__cddai__update_node"
+      "mcp__cddai__update_node",
+      "mcp__cddai__get_project_graph",
+      "mcp__cddai__search_nodes",
+      "mcp__cddai__list_edges",
+      "mcp__cddai__delete_edge",
+      "mcp__cddai__link_nodes"
     ]
   }
 }

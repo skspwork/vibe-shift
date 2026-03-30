@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
 import { eq } from "drizzle-orm";
 import { db, rawDb, schema } from "../db/index.js";
-import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS } from "@cddai/shared";
+import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS, getNextActiveType } from "@cddai/shared";
 import { getNodeContext, getNodeTrace } from "../services/contextService.js";
 
 const app = new Hono();
@@ -93,6 +93,21 @@ app.post("/", async (c) => {
   const parsed = CreateNodeSchema.parse(body);
   const now = new Date().toISOString();
   const nodeId = uuid();
+
+  // Validate parent-child type hierarchy
+  const [parentNode] = await db.select().from(schema.nodes).where(eq(schema.nodes.id, parsed.parent_id));
+  if (!parentNode) return c.json({ error: "Parent node not found" }, 404);
+
+  const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, parsed.project_id));
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const activeLanes = JSON.parse(project.active_lanes) as string[];
+  const expectedType = getNextActiveType(parentNode.type, activeLanes);
+  if (expectedType !== parsed.type) {
+    return c.json({
+      error: `Cannot create '${parsed.type}' as child of '${parentNode.type}'. Expected: '${expectedType}'`,
+    }, 400);
+  }
 
   await db.insert(schema.nodes).values({
     id: nodeId,

@@ -29,7 +29,17 @@ export function SearchPanel({ projectId }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { setSelectedNodeId, setFocusNodeId } = useAppStore();
+  const { setSelectedNodeId, setFocusNodeId, setPanToNodeId, selectedNodeId, focusNodeId } = useAppStore();
+  const isSearchSelect = useRef(false);
+
+  // Close dropdown when graph is clicked (focusNodeId changes from outside)
+  useEffect(() => {
+    if (isSearchSelect.current) {
+      isSearchSelect.current = false;
+      return;
+    }
+    setOpen(false);
+  }, [focusNodeId]);
 
   // Debounce
   useEffect(() => {
@@ -58,13 +68,12 @@ export function SearchPanel({ projectId }: Props) {
 
   const handleSelect = useCallback(
     (nodeId: string) => {
+      isSearchSelect.current = true;
       setSelectedNodeId(nodeId);
       setFocusNodeId(nodeId);
-      setOpen(false);
-      setQuery("");
-      setDebouncedQuery("");
+      setPanToNodeId(nodeId);
     },
-    [setSelectedNodeId, setFocusNodeId]
+    [setSelectedNodeId, setFocusNodeId, setPanToNodeId]
   );
 
   const handleKeyDown = useCallback(
@@ -114,7 +123,7 @@ export function SearchPanel({ projectId }: Props) {
               <button
                 key={node.id}
                 onClick={() => handleSelect(node.id)}
-                className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0 transition"
+                className={`w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0 transition ${node.id === selectedNodeId ? "bg-blue-50" : ""}`}
                 style={{ borderLeftWidth: 3, borderLeftColor: NODE_COLORS[node.type] || "#999" }}
               >
                 <div className="text-sm font-medium truncate">{node.title}</div>

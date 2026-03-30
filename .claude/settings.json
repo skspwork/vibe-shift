@@ -6,7 +6,9 @@
       "mcp__cddai__search_nodes",
       "mcp__cddai__list_edges",
       "mcp__cddai__delete_edge",
-      "mcp__cddai__link_nodes"
+      "mcp__cddai__link_nodes",
+      "mcp__cddai__check_impact",
+      "mcp__cddai__get_node_context"
     ]
   }
 }

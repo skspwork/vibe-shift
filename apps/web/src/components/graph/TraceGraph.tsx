@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
+  useReactFlow,
   type Node as RFNode,
   type Edge as RFEdge,
   Position,
@@ -36,7 +38,24 @@ interface Props {
   projectId: string;
 }
 
-export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Props) {
+function FocusHandler({ rfNodes }: { rfNodes: RFNode[] }) {
+  const { setCenter, getZoom } = useReactFlow();
+  const panToNodeId = useAppStore((s) => s.panToNodeId);
+  const setPanToNodeId = useAppStore((s) => s.setPanToNodeId);
+
+  useEffect(() => {
+    if (!panToNodeId) return;
+    const node = rfNodes.find((n) => n.id === panToNodeId);
+    if (node) {
+      setCenter(node.position.x + 90, node.position.y + 30, { duration: 300, zoom: getZoom() });
+    }
+    setPanToNodeId(null);
+  }, [panToNodeId, rfNodes, setCenter, getZoom, setPanToNodeId]);
+
+  return null;
+}
+
+function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "projectId">) {
   const { selectedNodeId, setSelectedNodeId, focusNodeId, setFocusNodeId } = useAppStore();
   const { hiddenLanes } = useAppStore();
 
@@ -201,7 +220,16 @@ export function TraceGraph({ nodes: rawNodes, edges: rawEdges, projectId }: Prop
       >
         <Background />
         <Controls />
+        <FocusHandler rfNodes={rfNodes} />
       </ReactFlow>
     </div>
+  );
+}
+
+export function TraceGraph({ nodes, edges }: Props) {
+  return (
+    <ReactFlowProvider>
+      <TraceGraphInner nodes={nodes} edges={edges} />
+    </ReactFlowProvider>
   );
 }

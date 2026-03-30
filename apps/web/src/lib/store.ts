@@ -9,6 +9,10 @@ interface AppState {
   focusNodeId: string | null;
   setFocusNodeId: (id: string | null) => void;
 
+  // Pan to node (search-triggered only)
+  panToNodeId: string | null;
+  setPanToNodeId: (id: string | null) => void;
+
   // Lane filter
   hiddenLanes: Set<string>;
   toggleLane: (lane: string) => void;
@@ -20,6 +24,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   focusNodeId: null,
   setFocusNodeId: (id) => set({ focusNodeId: id }),
+
+  panToNodeId: null,
+  setPanToNodeId: (id) => set({ panToNodeId: id }),
 
   hiddenLanes: new Set<string>(),
   toggleLane: (lane) =>

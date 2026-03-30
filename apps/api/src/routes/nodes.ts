@@ -310,6 +310,117 @@ app.get("/:id/conv", async (c) => {
   });
 });
 
+app.post("/impact", async (c) => {
+  const body = await c.req.json();
+  const { project_id, changed_files, keywords, description, include_upstream = true } = body;
+
+  if (!project_id) return c.json({ error: "project_id required" }, 400);
+  if (!changed_files?.length && !keywords?.length && !description) {
+    return c.json({ error: "changed_files, keywords, description のいずれかを指定してください" }, 400);
+  }
+
+  const matchedMap = new Map<string, { node: any; match_reason: string }>();
+
+  // 1. URL/content LIKE search for changed_files
+  if (changed_files?.length) {
+    for (const file of changed_files) {
+      const pattern = `%${file}%`;
+      const urlMatches = rawDb.prepare(
+        "SELECT * FROM nodes WHERE project_id = ? AND (url LIKE ? OR content LIKE ?)"
+      ).all(project_id, pattern, pattern) as any[];
+      for (const n of urlMatches) {
+        if (!matchedMap.has(n.id)) matchedMap.set(n.id, { node: n, match_reason: "url_match" });
+      }
+    }
+  }
+
+  // 2. FTS search for keywords + description
+  const searchTerms: string[] = [...(keywords || [])];
+  if (description) {
+    searchTerms.push(...description.split(/\s+/).filter((t: string) => t.length > 1));
+  }
+  if (searchTerms.length > 0) {
+    const ftsQuery = searchTerms.map((t) => `"${t}"`).join(" OR ");
+    try {
+      const ftsResults = rawDb.prepare(`
+        SELECT n.*, bm25(nodes_fts) as rank
+        FROM nodes_fts fts
+        JOIN nodes n ON n.id = fts.node_id
+        WHERE nodes_fts MATCH ? AND n.project_id = ?
+        ORDER BY rank
+      `).all(ftsQuery, project_id) as any[];
+      for (const n of ftsResults) {
+        if (!matchedMap.has(n.id)) matchedMap.set(n.id, { node: n, match_reason: "fts_match" });
+      }
+    } catch {
+      // FTS query may fail on special chars; fall through to LIKE
+    }
+
+    // LIKE fallback for each keyword
+    for (const term of keywords || []) {
+      const pattern = `%${term}%`;
+      const likeMatches = rawDb.prepare(
+        "SELECT * FROM nodes WHERE project_id = ? AND (title LIKE ? OR content LIKE ?)"
+      ).all(project_id, pattern, pattern) as any[];
+      for (const n of likeMatches) {
+        if (!matchedMap.has(n.id)) matchedMap.set(n.id, { node: n, match_reason: "fts_match" });
+      }
+    }
+  }
+
+  // 3. Upstream trace expansion
+  if (include_upstream && matchedMap.size > 0) {
+    const allEdges = rawDb.prepare(
+      "SELECT from_node_id, to_node_id FROM edges WHERE link_type = 'derives' AND from_node_id IN (SELECT id FROM nodes WHERE project_id = ?)"
+    ).all(project_id) as any[];
+
+    const parentMap = new Map<string, string>();
+    for (const e of allEdges) {
+      parentMap.set(e.to_node_id, e.from_node_id);
+    }
+
+    const directIds = new Set(matchedMap.keys());
+    for (const nodeId of directIds) {
+      let current = parentMap.get(nodeId);
+      while (current) {
+        if (!matchedMap.has(current)) {
+          const upNode = rawDb.prepare("SELECT * FROM nodes WHERE id = ?").all(current)[0] as any;
+          if (upNode && upNode.type !== "overview") {
+            matchedMap.set(current, { node: upNode, match_reason: "upstream_trace" });
+          }
+        }
+        current = parentMap.get(current);
+      }
+    }
+  }
+
+  // 4. Build paths and format results
+  const paths = buildNodePaths(project_id);
+  const REASON_ORDER: Record<string, number> = { url_match: 0, fts_match: 1, upstream_trace: 2 };
+  const TYPE_ORDER: Record<string, number> = {
+    code: 0, detail_design: 1, basic_design: 2, spec: 3, req: 4, need: 5, overview: 6,
+  };
+
+  const matched_nodes = Array.from(matchedMap.values())
+    .map(({ node, match_reason }) => {
+      const path = paths.get(node.id);
+      return {
+        id: node.id,
+        type: node.type,
+        title: node.title,
+        content_excerpt: (node.content || "").slice(0, 200),
+        url: node.url || null,
+        match_reason,
+        path: path ? path.titles.join(" > ") : node.title,
+        updated_at: node.updated_at,
+      };
+    })
+    .sort((a, b) => (REASON_ORDER[a.match_reason] ?? 9) - (REASON_ORDER[b.match_reason] ?? 9)
+      || (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9));
+
+  return c.json({ matched_nodes });
+});
+
 app.get("/:id/trace", async (c) => {
   const nodeId = c.req.param("id");
   const direction = (c.req.query("direction") as "upstream" | "downstream" | "both") || "both";

@@ -58,6 +58,15 @@ export const apiClient = {
   getProjectContext: (projectId: string) =>
     request<{ context: string }>(`/projects/${projectId}/context`),
 
+  // Impact analysis
+  checkImpact: (data: {
+    project_id: string;
+    changed_files?: string[];
+    keywords?: string[];
+    description?: string;
+    include_upstream?: boolean;
+  }) => request<any>("/nodes/impact", { method: "POST", body: JSON.stringify(data) }),
+
   // Edges
   createEdge: (data: any) =>
     request<any>("/edges", { method: "POST", body: JSON.stringify(data) }),

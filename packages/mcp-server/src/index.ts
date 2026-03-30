@@ -80,6 +80,13 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 ## コンテンツのフォーマット
 - ノードのcontent、rationale_note、プロジェクトのpurpose/scope/constraints等、すべてのテキストはマークダウン形式で記述してください
 - 見出し（##）、箇条書き（-）、番号付きリスト（1.）、コードブロック（\`\`\`）等を活用し、構造的に記述してください
+
+## コード変更時の影響確認ルール（重要）
+コードを修正・追加した場合は、必ず \`check_impact\` ツールを呼び出して影響範囲を確認してください。
+1. 変更したファイルパスやキーワードを指定して \`check_impact\` を呼び出す
+2. 返却されたノード（仕様・設計等）の内容が実装と乖離していないか確認する
+3. 乖離がある場合は \`update_node\` でノード内容を最新の実装に合わせて更新する
+この手順により、コードとドキュメントの整合性を常に維持してください。
 `,
       },
     ],
@@ -348,7 +355,7 @@ server.registerTool(
 server.registerTool(
   "update_node",
   {
-    description: "既存ノードのタイトル・内容・経緯メモを更新する。【注意】更新内容をユーザーに提示し、承認を得てから呼び出すこと。",
+    description: "既存ノードのタイトル・内容・経緯メモを更新する。【注意】更新内容をユーザーに提示し、承認を得てから呼び出すこと。大幅な変更の場合はcheck_impactで下流ノードへの影響も確認すること。",
     annotations: {
       title: "ノード更新",
       destructiveHint: false,
@@ -932,7 +939,7 @@ server.registerTool(
   "register_code",
   {
     description:
-      "親ノードにコードリンク（PR URLやコミットURL）を登録する。codeノードを作成し親ノードにリンクする。",
+      "親ノードにコードリンク（PR URLやコミットURL）を登録する。codeノードを作成し親ノードにリンクする。登録後、check_impactで影響範囲を確認し、関連ノードの内容が最新か検証すること。",
     annotations: {
       title: "コードリンク登録",
     },
@@ -977,6 +984,73 @@ server.registerTool(
     return {
       content: [{ type: "text" as const, text: context }],
     };
+  })
+);
+
+// ─── Tool 17: check_impact ───
+server.registerTool(
+  "check_impact",
+  {
+    description:
+      "コード変更の影響範囲を分析する。ファイルパス・キーワード・変更内容の説明を入力すると、影響を受ける可能性のあるノード（コード・詳細設計・仕様・要件等）を上流トレースと共に返す。返却されたノードの内容を確認し、必要に応じてupdate_nodeで更新すること。",
+    annotations: {
+      title: "影響範囲分析",
+      readOnlyHint: true,
+    },
+    inputSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+      changed_files: z
+        .array(z.string())
+        .optional()
+        .describe("変更されたファイルパスやPR URLの配列（部分一致で検索）"),
+      keywords: z
+        .array(z.string())
+        .optional()
+        .describe("変更に関連するキーワードの配列（FTS検索に使用）"),
+      description: z
+        .string()
+        .optional()
+        .describe("変更内容の自然言語での説明（FTS検索に使用）"),
+      include_upstream: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("マッチしたノードの上流ノードも含めるか（デフォルト: true）"),
+    },
+  },
+  safeHandler(async ({ project_id, changed_files, keywords, description, include_upstream }) => {
+    if (!changed_files?.length && !keywords?.length && !description) {
+      throw new Error("changed_files, keywords, description のいずれかを指定してください");
+    }
+    const result = await apiClient.checkImpact({
+      project_id,
+      changed_files,
+      keywords,
+      description,
+      include_upstream,
+    });
+
+    const nodes = result.matched_nodes || [];
+    const direct = nodes.filter((n: any) => n.match_reason !== "upstream_trace");
+    const upstream = nodes.filter((n: any) => n.match_reason === "upstream_trace");
+
+    let output = `## 影響分析結果\n\n`;
+    output += `直接マッチ: ${direct.length}件、上流トレース: ${upstream.length}件\n\n`;
+
+    for (const node of nodes) {
+      output += `### [${node.type}] ${node.title}\n`;
+      output += `- ID: ${node.id}\n`;
+      output += `- マッチ理由: ${node.match_reason}\n`;
+      output += `- パス: ${node.path}\n`;
+      output += `- 更新日時: ${node.updated_at}\n`;
+      output += `- 抜粋: ${node.content_excerpt}\n\n`;
+    }
+
+    if (nodes.length === 0) {
+      output += "該当するノードは見つかりませんでした。\n";
+    }
+
+    return { content: [{ type: "text" as const, text: output }] };
   })
 );
 

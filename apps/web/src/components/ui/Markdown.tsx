@@ -2,6 +2,37 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useEffect, useRef, useId } from "react";
+import mermaid from "mermaid";
+
+mermaid.initialize({ startOnLoad: false, theme: "default" });
+
+function MermaidBlock({ code }: { code: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const id = useId().replace(/:/g, "_");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!ref.current) return;
+      try {
+        const { svg } = await mermaid.render(`mermaid${id}`, code);
+        if (!cancelled && ref.current) {
+          ref.current.innerHTML = svg;
+        }
+      } catch {
+        if (!cancelled && ref.current) {
+          ref.current.textContent = code;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [code, id]);
+
+  return <div ref={ref} className="my-2 flex justify-center" />;
+}
 
 interface Props {
   children: string;
@@ -20,7 +51,31 @@ export function Markdown({ children, className = "" }: Props) {
         prose-td:border prose-td:border-gray-300 prose-td:px-2 prose-td:py-1
         ${className}`}
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          code({ className: codeClassName, children: codeChildren, ...rest }) {
+            const match = /language-(\w+)/.exec(codeClassName || "");
+            if (match && match[1] === "mermaid") {
+              return (
+                <MermaidBlock
+                  code={String(codeChildren).replace(/\n$/, "")}
+                />
+              );
+            }
+            return (
+              <code className={codeClassName} {...rest}>
+                {codeChildren}
+              </code>
+            );
+          },
+          pre({ children: preChildren }) {
+            return <>{preChildren}</>;
+          },
+        }}
+      >
+        {children}
+      </ReactMarkdown>
     </div>
   );
 }

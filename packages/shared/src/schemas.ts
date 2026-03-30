@@ -69,12 +69,9 @@ export const NODE_LABELS: Record<string, string> = {
   need: "要求",
   req: "要件",
   spec: "仕様",
-  design: "設計（旧）",
   basic_design: "基本設計",
   detail_design: "詳細設計",
-  task: "タスク（旧）",
   code: "コード",
-  test: "テスト（旧）",
 };
 
 export const DEFAULT_NODE_INSTRUCTIONS: Record<string, string> = {

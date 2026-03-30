@@ -9,15 +9,12 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   need: { bg: "#E6F1FB", border: "#378ADD", text: "#1a3a5c" },
   req: { bg: "#E1F5EE", border: "#1D9E75", text: "#0d4a36" },
   spec: { bg: "#EEEDFE", border: "#7F77DD", text: "#3a356a" },
-  design: { bg: "#FAEEDA", border: "#EF9F27", text: "#5a3d0a" },
   basic_design: { bg: "#FAEEDA", border: "#EF9F27", text: "#5a3d0a" },
   detail_design: { bg: "#FDF2E0", border: "#D4880E", text: "#5a3d0a" },
-  task: { bg: "#FAECE7", border: "#D85A30", text: "#5a1f0a" },
   code: { bg: "#EAF3DE", border: "#639922", text: "#2a4a0a" },
-  test: { bg: "#FBEAF0", border: "#D4537E", text: "#5a1a30" },
 };
 
-const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "code", "task", "test"];
+const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "code"];
 
 export function ViewToolbar({ projectId }: { projectId: string }) {
   const { hiddenLanes, toggleLane } = useAppStore();

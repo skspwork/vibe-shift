@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiClient } from "./client.js";
-import { getChildTypeMap, getAllowedChildTypeMap, GUIDANCE_TEXT } from "@cddai/shared";
+import { getChildTypeMap, getAllowedChildTypeMap, GUIDANCE_TEXT, DEFAULT_NODE_INSTRUCTIONS } from "@cddai/shared";
 
 const server = new McpServer({
   name: "CddAI",
@@ -107,7 +107,7 @@ server.registerPrompt(
     const overviewNode = graph.nodes?.find((n: any) => n.type === "overview");
     const overviewId = overviewNode?.id || "（不明）";
 
-    const nodeInstructions = project.node_instructions || {};
+    const nodeInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...(project.node_instructions || {}) };
     const instructionsBlock = Object.entries(nodeInstructions)
       .filter(([, v]) => (v as string).trim())
       .map(([type, instruction]) => `- ${type}: ${instruction}`)
@@ -196,7 +196,7 @@ server.registerPrompt(
       basic_design: "基本設計", detail_design: "詳細設計", code: "コード",
     };
 
-    const nodeInstructions = project.node_instructions || {};
+    const nodeInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...(project.node_instructions || {}) };
     const instructionsBlock = Object.entries(nodeInstructions)
       .filter(([, v]) => (v as string).trim())
       .map(([type, instruction]) => `- ${type}: ${instruction}`)
@@ -995,7 +995,7 @@ server.registerPrompt(
     const { context } = await apiClient.getProjectContext(project_id);
     const project = await apiClient.getProject(project_id);
 
-    const nodeInstructions = project.node_instructions || {};
+    const nodeInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...(project.node_instructions || {}) };
     const instructionsBlock = Object.entries(nodeInstructions)
       .filter(([, v]) => (v as string).trim())
       .map(([type, instruction]) => `- ${type}: ${instruction}`)

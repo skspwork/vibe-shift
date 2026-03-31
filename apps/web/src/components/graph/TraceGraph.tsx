@@ -118,41 +118,112 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     return LANE_ORDER.filter((l) => !hiddenLanes.has(l));
   }, [hiddenLanes]);
 
-  // Layout: group by type (lane), position horizontally
+  // Layout: group by need (row-based), position horizontally by lane
   const rfNodes: RFNode[] = useMemo(() => {
-    const byLane: Record<string, any[]> = {};
-    for (const node of filteredNodes) {
-      const lane = node.type;
-      if (!byLane[lane]) byLane[lane] = [];
-      byLane[lane].push(node);
-    }
+    const NODE_HEIGHT = 100;
+    const ROW_GAP = 20;
+
+    // Build lane X positions
+    const laneX: Record<string, number> = {};
+    visibleLanes.forEach((lane, li) => { laneX[lane] = li * 220; });
+
+    // Separate overview and need nodes
+    const overviewNodes = filteredNodes.filter((n) => n.type === "overview");
+    const needNodes = filteredNodes.filter((n) => n.type === "need");
+    const assignedIds = new Set<string>();
+
+    // Build row groups: each need + all descendants grouped by lane
+    const rowGroups = needNodes.map((need) => {
+      const byLane: Record<string, any[]> = { need: [need] };
+      assignedIds.add(need.id);
+      const queue = [need.id];
+      const visited = new Set([need.id]);
+      while (queue.length > 0) {
+        const id = queue.shift()!;
+        for (const childId of adjDown.get(id) || []) {
+          if (visited.has(childId)) continue;
+          visited.add(childId);
+          const child = filteredNodes.find((n) => n.id === childId);
+          if (child) {
+            if (!byLane[child.type]) byLane[child.type] = [];
+            byLane[child.type].push(child);
+            assignedIds.add(child.id);
+            queue.push(childId);
+          }
+        }
+      }
+      const maxCount = Math.max(...Object.values(byLane).map((arr) => arr.length));
+      return { byLane, height: maxCount * NODE_HEIGHT };
+    });
 
     const result: RFNode[] = [];
-    for (let li = 0; li < visibleLanes.length; li++) {
-      const lane = visibleLanes[li];
-      const laneNodes = byLane[lane] || [];
-      const laneX = li * 220;
+    const addNode = (node: any, x: number, y: number) => {
+      const isFocused = focusSet ? focusSet.has(node.id) : true;
+      result.push({
+        id: node.id,
+        type: "custom",
+        position: { x, y },
+        data: {
+          label: node.title,
+          nodeType: node.type,
+          colors: NODE_COLORS[node.type] || NODE_COLORS.need,
+          selected: node.id === selectedNodeId,
+          dimmed: !isFocused,
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+      });
+    };
 
-      laneNodes.forEach((node, i) => {
-        const isFocused = focusSet ? focusSet.has(node.id) : true;
-        result.push({
-          id: node.id,
-          type: "custom",
-          position: { x: laneX, y: 60 + i * 100 },
-          data: {
-            label: node.title,
-            nodeType: node.type,
-            colors: NODE_COLORS[node.type] || NODE_COLORS.need,
-            selected: node.id === selectedNodeId,
-            dimmed: !isFocused,
-          },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
+    const startY = 60;
+    let currentY = startY;
+
+    // Place each need row group (overview deferred to center later)
+    for (const group of rowGroups) {
+      for (const lane of visibleLanes) {
+        if (lane === "overview") continue;
+        const nodes = group.byLane[lane] || [];
+        const x = laneX[lane];
+        if (x === undefined) continue;
+        nodes.forEach((node, i) => {
+          addNode(node, x, currentY + i * NODE_HEIGHT);
         });
+      }
+      currentY += group.height + ROW_GAP;
+    }
+
+    const totalHeight = Math.max(currentY - startY - ROW_GAP, 0);
+
+    // Place overview nodes at vertical center
+    if (laneX["overview"] !== undefined) {
+      const overviewBlockHeight = overviewNodes.length * NODE_HEIGHT;
+      const centerY = startY + totalHeight / 2 - overviewBlockHeight / 2;
+      overviewNodes.forEach((node, i) => {
+        assignedIds.add(node.id);
+        addNode(node, laneX["overview"], centerY + i * NODE_HEIGHT);
       });
     }
+
+    // Place orphan nodes (not assigned to any need group)
+    const orphans = filteredNodes.filter((n) => !assignedIds.has(n.id));
+    const orphanByLane: Record<string, any[]> = {};
+    for (const node of orphans) {
+      if (!orphanByLane[node.type]) orphanByLane[node.type] = [];
+      orphanByLane[node.type].push(node);
+    }
+    if (orphans.length > 0) {
+      for (const lane of visibleLanes) {
+        const nodes = orphanByLane[lane] || [];
+        const x = laneX[lane];
+        if (x === undefined) continue;
+        nodes.forEach((node, i) => {
+          addNode(node, x, currentY + i * NODE_HEIGHT);
+        });
+      }
+    }
+
     return result;
-  }, [filteredNodes, visibleLanes, selectedNodeId, focusSet]);
+  }, [filteredNodes, visibleLanes, selectedNodeId, focusSet, adjDown]);
 
   const rfEdges: RFEdge[] = useMemo(() => {
     return filteredEdges.map((e: any) => {

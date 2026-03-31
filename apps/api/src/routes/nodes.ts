@@ -132,6 +132,17 @@ app.post("/", async (c) => {
     created_at: now,
   });
 
+  // Link conversation via junction table
+  if (parsed.conversation_id) {
+    await db.insert(schema.node_conversations).values({
+      id: uuid(),
+      node_id: nodeId,
+      conversation_id: parsed.conversation_id,
+      purpose: "作成時",
+      linked_at: now,
+    });
+  }
+
   // Sync FTS
   ftsInsert(nodeId, parsed.title, parsed.content);
 
@@ -221,10 +232,24 @@ app.patch("/:id", async (c) => {
   const parsed = UpdateNodeSchema.parse(body);
   const now = new Date().toISOString();
 
+  // Extract conversation fields (don't write to nodes table)
+  const { conversation_id, conversation_purpose, ...nodeUpdates } = parsed;
+
   await db
     .update(schema.nodes)
-    .set({ ...parsed, updated_at: now })
+    .set({ ...nodeUpdates, updated_at: now })
     .where(eq(schema.nodes.id, id));
+
+  // Link conversation via junction table (append, not overwrite)
+  if (conversation_id) {
+    await db.insert(schema.node_conversations).values({
+      id: uuid(),
+      node_id: id,
+      conversation_id,
+      purpose: conversation_purpose || "更新",
+      linked_at: now,
+    });
+  }
 
   const [node] = await db
     .select()
@@ -271,8 +296,9 @@ app.delete("/:id", async (c) => {
     }
   }
 
-  // Delete all in order: edges -> nodes -> FTS
+  // Delete all in order: node_conversations -> edges -> nodes -> FTS
   for (const nodeId of toDelete) {
+    await db.delete(schema.node_conversations).where(eq(schema.node_conversations.node_id, nodeId));
     await db.delete(schema.edges).where(eq(schema.edges.from_node_id, nodeId));
     await db.delete(schema.edges).where(eq(schema.edges.to_node_id, nodeId));
   }
@@ -287,27 +313,56 @@ app.delete("/:id", async (c) => {
 app.get("/:id/conv", async (c) => {
   const nodeId = c.req.param("id");
 
-  const [node] = await db
-    .select()
-    .from(schema.nodes)
-    .where(eq(schema.nodes.id, nodeId));
-  if (!node || !node.conversation_id) return c.json(null);
+  // Get all linked conversations via junction table
+  const links = rawDb.prepare(`
+    SELECT nc.purpose, nc.linked_at, c.id, c.title, c.created_at
+    FROM node_conversations nc
+    JOIN conversations c ON c.id = nc.conversation_id
+    WHERE nc.node_id = ?
+    ORDER BY nc.linked_at ASC
+  `).all(nodeId) as any[];
 
-  const [conversation] = await db
-    .select()
-    .from(schema.conversations)
-    .where(eq(schema.conversations.id, node.conversation_id));
-  if (!conversation) return c.json(null);
+  if (links.length === 0) {
+    // Fallback: check legacy conversation_id on node
+    const [node] = await db
+      .select()
+      .from(schema.nodes)
+      .where(eq(schema.nodes.id, nodeId));
+    if (!node?.conversation_id) return c.json([]);
 
-  const messages = await db
-    .select()
-    .from(schema.conv_messages)
-    .where(eq(schema.conv_messages.conversation_id, conversation.id));
+    const [conversation] = await db
+      .select()
+      .from(schema.conversations)
+      .where(eq(schema.conversations.id, node.conversation_id));
+    if (!conversation) return c.json([]);
 
-  return c.json({
-    conversation,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    const messages = await db
+      .select()
+      .from(schema.conv_messages)
+      .where(eq(schema.conv_messages.conversation_id, conversation.id));
+
+    return c.json([{
+      conversation,
+      purpose: "作成時",
+      linked_at: conversation.created_at,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    }]);
+  }
+
+  // Fetch messages for each linked conversation
+  const result = links.map((link: any) => {
+    const messages = rawDb.prepare(
+      "SELECT role, content FROM conv_messages WHERE conversation_id = ? ORDER BY created_at ASC"
+    ).all(link.id) as any[];
+    return {
+      conversation: { id: link.id, title: link.title, created_at: link.created_at },
+      purpose: link.purpose,
+      linked_at: link.linked_at,
+      messages,
+    };
   });
+
+  return c.json(result);
 });
 
 app.post("/impact", async (c) => {

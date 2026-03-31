@@ -33,10 +33,9 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     queryFn: () => api.getNode(nodeId),
   });
 
-  const { data: convData } = useQuery({
+  const { data: convDataList } = useQuery({
     queryKey: ["node-conv", nodeId],
     queryFn: () => api.getNodeConv(nodeId),
-    enabled: !!node && node.created_by === "ai",
   });
 
   const updateMutation = useMutation({
@@ -145,7 +144,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
 
       <RationaleSection
         node={node}
-        convData={convData}
+        convDataList={convDataList || []}
         onUpdate={(note) =>
           updateMutation.mutate({ rationale_note: note })
         }

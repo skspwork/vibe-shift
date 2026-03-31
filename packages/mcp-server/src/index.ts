@@ -367,14 +367,18 @@ server.registerTool(
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
       content: z.string().optional().describe("新しい内容"),
-      rationale_note: z.string().optional().describe("新しい経緯メモ"),
+      rationale_note: z.string().nullable().optional().describe("経緯メモ（nullで削除）"),
+      conversation_id: z.string().uuid().optional().describe("更新経緯の会話ID（中間テーブルに追加リンクされる、上書きではない）"),
+      conversation_purpose: z.string().optional().describe("会話の目的ラベル（例: '更新: 検索UI改善'）。省略時は '更新'"),
     },
   },
-  safeHandler(async ({ node_id, title, content, rationale_note }) => {
-    const updates: Record<string, string> = {};
+  safeHandler(async ({ node_id, title, content, rationale_note, conversation_id, conversation_purpose }) => {
+    const updates: Record<string, any> = {};
     if (title !== undefined) updates.title = title;
     if (content !== undefined) updates.content = content;
     if (rationale_note !== undefined) updates.rationale_note = rationale_note;
+    if (conversation_id !== undefined) updates.conversation_id = conversation_id;
+    if (conversation_purpose !== undefined) updates.conversation_purpose = conversation_purpose;
 
     const node = await apiClient.updateNode(node_id, updates);
     return {

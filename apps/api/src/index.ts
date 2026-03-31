@@ -11,6 +11,7 @@ import { db, schema } from "./db/index.js";
 import { sql } from "drizzle-orm";
 import Database from "better-sqlite3";
 import { resolve } from "path";
+import { v4 as uuidv4 } from "uuid";
 
 // Run migrations inline for dev
 function initDb() {
@@ -64,6 +65,14 @@ function initDb() {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS node_conversations (
+      id TEXT PRIMARY KEY,
+      node_id TEXT NOT NULL REFERENCES nodes(id),
+      conversation_id TEXT NOT NULL REFERENCES conversations(id),
+      purpose TEXT NOT NULL DEFAULT '作成時',
+      linked_at TEXT NOT NULL
+    );
+
     CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
       node_id UNINDEXED,
       title,
@@ -71,6 +80,22 @@ function initDb() {
       tokenize='unicode61'
     );
   `);
+
+  // Migrate existing nodes.conversation_id → node_conversations
+  const existing = sqlite.prepare(
+    "SELECT id, conversation_id, created_at FROM nodes WHERE conversation_id IS NOT NULL"
+  ).all() as any[];
+  for (const row of existing) {
+    const alreadyMigrated = sqlite.prepare(
+      "SELECT 1 FROM node_conversations WHERE node_id = ? AND conversation_id = ?"
+    ).get(row.id, row.conversation_id);
+    if (!alreadyMigrated) {
+      const ncId = uuidv4();
+      sqlite.prepare(
+        "INSERT INTO node_conversations (id, node_id, conversation_id, purpose, linked_at) VALUES (?, ?, ?, ?, ?)"
+      ).run(ncId, row.id, row.conversation_id, "作成時", row.created_at);
+    }
+  }
 
   // Rebuild FTS index from existing nodes (idempotent)
   const count = sqlite.prepare("SELECT COUNT(*) as c FROM nodes_fts").get() as any;

@@ -5,17 +5,22 @@ import { Pencil, Check, X } from "lucide-react";
 import { ConvLogViewer } from "./ConvLogViewer";
 import { Markdown } from "../ui/Markdown";
 
+interface ConvEntry {
+  conversation: { id: string; title: string; created_at: string };
+  purpose: string;
+  linked_at: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+}
+
 interface Props {
   node: any;
-  convData: any;
+  convDataList: ConvEntry[];
   onUpdate: (note: string) => void;
 }
 
-export function RationaleSection({ node, convData, onUpdate }: Props) {
+export function RationaleSection({ node, convDataList, onUpdate }: Props) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(node.rationale_note || "");
-
-  const isAiGenerated = node.created_by === "ai";
 
   // Sync noteText when node changes
   useEffect(() => {
@@ -28,17 +33,23 @@ export function RationaleSection({ node, convData, onUpdate }: Props) {
     setEditingNote(false);
   };
 
+  const hasConversations = convDataList.length > 0;
+
   return (
     <div className="border-t pt-4">
       <p className="text-xs font-medium text-gray-500 mb-2">生成経緯</p>
 
-      {isAiGenerated && convData ? (
+      {hasConversations ? (
         <div className="space-y-3">
-          {/* AI conversation log viewer */}
-          <ConvLogViewer
-            conversation={convData.conversation}
-            messages={convData.messages}
-          />
+          {convDataList.map((entry) => (
+            <div key={entry.conversation.id + entry.linked_at} className="space-y-1">
+              <p className="text-xs text-gray-400">{entry.purpose}</p>
+              <ConvLogViewer
+                conversation={entry.conversation}
+                messages={entry.messages}
+              />
+            </div>
+          ))}
 
           {/* Supplementary note */}
           <div>
@@ -81,7 +92,7 @@ export function RationaleSection({ node, convData, onUpdate }: Props) {
             )}
           </div>
         </div>
-      ) : isAiGenerated && !convData ? (
+      ) : node.created_by === "ai" ? (
         <div className="text-xs text-gray-400 italic">
           AI生成（会話ログなし）
         </div>

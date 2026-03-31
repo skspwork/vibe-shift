@@ -46,6 +46,18 @@ export const edges = sqliteTable("edges", {
   created_at: text("created_at").notNull(),
 });
 
+export const node_conversations = sqliteTable("node_conversations", {
+  id: text("id").primaryKey(),
+  node_id: text("node_id")
+    .notNull()
+    .references(() => nodes.id),
+  conversation_id: text("conversation_id")
+    .notNull()
+    .references(() => conversations.id),
+  purpose: text("purpose").notNull().default("作成時"),
+  linked_at: text("linked_at").notNull(),
+});
+
 export const conv_messages = sqliteTable("conv_messages", {
   id: text("id").primaryKey(),
   conversation_id: text("conversation_id")

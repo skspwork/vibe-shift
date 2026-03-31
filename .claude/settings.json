@@ -8,7 +8,8 @@
       "mcp__cddai__delete_edge",
       "mcp__cddai__link_nodes",
       "mcp__cddai__check_impact",
-      "mcp__cddai__get_node_context"
+      "mcp__cddai__get_node_context",
+      "mcp__cddai__create_conversation"
     ]
   }
 }

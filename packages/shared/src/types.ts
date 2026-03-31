@@ -31,7 +31,6 @@ export interface AppNode {
   type: NodeTypeValue;
   title: string;
   content: string;
-  rationale_note: string | null;
   conversation_id: string | null;
   created_by: CreatedByValue;
   created_at: string;

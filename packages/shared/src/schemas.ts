@@ -134,7 +134,6 @@ export const CreateNodeSchema = z.object({
   parent_id: z.string().uuid(),
   conversation_id: z.string().uuid().optional(),
   url: z.string().url().optional(),
-  rationale_note: z.string().optional(),
   created_by: CreatedBy.default("user"),
 });
 
@@ -142,7 +141,6 @@ export const UpdateNodeSchema = z.object({
   title: z.string().min(1).max(100).optional(),
   content: z.string().optional(),
   url: z.string().url().nullable().optional(),
-  rationale_note: z.string().nullable().optional(),
   conversation_id: z.string().uuid().nullable().optional(),
   conversation_purpose: z.string().optional(),
 });

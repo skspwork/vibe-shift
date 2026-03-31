@@ -3,6 +3,10 @@
     "cddai": {
       "command": "node",
       "args": ["C:/sksp/cdd-ai/packages/mcp-server/dist/index.js"]
+    },
+    "dbhub": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
     }
   }
 }

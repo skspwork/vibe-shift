@@ -38,14 +38,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     queryFn: () => api.getNodeConv(nodeId),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (data: any) => api.updateNode(nodeId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["node", nodeId] });
-      onUpdate();
-    },
-  });
-
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteNode(nodeId),
     onSuccess: () => {
@@ -145,9 +137,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
       <RationaleSection
         node={node}
         convDataList={convDataList || []}
-        onUpdate={(note) =>
-          updateMutation.mutate({ rationale_note: note })
-        }
       />
 
 

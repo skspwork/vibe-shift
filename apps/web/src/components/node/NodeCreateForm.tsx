@@ -24,7 +24,6 @@ export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: P
       title: "",
       content: "",
       url: "",
-      rationale_note: "",
     },
   });
 
@@ -107,15 +106,6 @@ export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: P
           </div>
         )}
 
-        <div>
-          <label className="block text-xs font-medium mb-1">経緯（任意）</label>
-          <textarea
-            {...register("rationale_note")}
-            rows={2}
-            className="w-full border rounded px-2 py-1.5 text-sm resize-none"
-            placeholder="なぜこのノードが必要か"
-          />
-        </div>
 
         <div className="flex gap-2">
           <button

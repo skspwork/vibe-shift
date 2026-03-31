@@ -78,7 +78,7 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 2. create_nodeのconversation_idに会話IDを指定（生成経緯がWeb UIに表示される）
 
 ## コンテンツのフォーマット
-- ノードのcontent、rationale_note、プロジェクトのpurpose/scope/constraints等、すべてのテキストはマークダウン形式で記述してください
+- ノードのcontent、プロジェクトのpurpose/scope/constraints等、すべてのテキストはマークダウン形式で記述してください
 - 見出し（##）、箇条書き（-）、番号付きリスト（1.）、コードブロック（\`\`\`）等を活用し、構造的に記述してください
 
 ## コード変更時の影響確認ルール（重要）
@@ -330,10 +330,9 @@ server.registerTool(
         .optional()
         .describe("会話ID（create_conversationで作成したIDを指定すると生成経緯として紐付く）"),
       url: z.string().optional().describe("外部URL（code: PR/MR URL）"),
-      rationale_note: z.string().optional().describe("経緯メモ（任意、マークダウン形式）"),
     },
   },
-  safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, url, rationale_note }) => {
+  safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, url }) => {
     const node = await apiClient.createNode({
       project_id,
       type,
@@ -342,7 +341,6 @@ server.registerTool(
       parent_id,
       conversation_id,
       url,
-      rationale_note,
       created_by: "ai",
     });
     return {
@@ -367,16 +365,14 @@ server.registerTool(
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
       content: z.string().optional().describe("新しい内容"),
-      rationale_note: z.string().nullable().optional().describe("経緯メモ（nullで削除）"),
       conversation_id: z.string().uuid().optional().describe("更新経緯の会話ID（中間テーブルに追加リンクされる、上書きではない）"),
       conversation_purpose: z.string().optional().describe("会話の目的ラベル（例: '更新: 検索UI改善'）。省略時は '更新'"),
     },
   },
-  safeHandler(async ({ node_id, title, content, rationale_note, conversation_id, conversation_purpose }) => {
+  safeHandler(async ({ node_id, title, content, conversation_id, conversation_purpose }) => {
     const updates: Record<string, any> = {};
     if (title !== undefined) updates.title = title;
     if (content !== undefined) updates.content = content;
-    if (rationale_note !== undefined) updates.rationale_note = rationale_note;
     if (conversation_id !== undefined) updates.conversation_id = conversation_id;
     if (conversation_purpose !== undefined) updates.conversation_purpose = conversation_purpose;
 
@@ -713,10 +709,6 @@ server.registerTool(
     sections.push(`## 対象ノード詳細`);
     sections.push(`- 種別: ${node.type}`);
     sections.push(`${node.content}\n`);
-    if (node.rationale_note) {
-      sections.push(`### 補足メモ\n${node.rationale_note}\n`);
-    }
-
     // Existing code
     if (codeNodes.length > 0) {
       sections.push(`## 既存のコードノード`);

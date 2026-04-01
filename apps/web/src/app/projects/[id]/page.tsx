@@ -9,7 +9,7 @@ import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ProjectSettings } from "@/components/setup/ProjectSettings";
 import { useAppStore } from "@/lib/store";
 import { Settings, Download } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -28,6 +28,28 @@ export default function ProjectPage() {
 
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const [showSettings, setShowSettings] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(320);
+  const isResizing = useRef(false);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    const onMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(200, Math.min(window.innerWidth * 0.5, window.innerWidth - e.clientX));
+      setPanelWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col">
@@ -70,7 +92,11 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        <div className="w-[320px] border-l bg-white overflow-y-auto shrink-0">
+        <div
+          className="w-2 hover:bg-blue-400 bg-gray-200 cursor-col-resize shrink-0 transition-colors"
+          onMouseDown={startResize}
+        />
+        <div className="border-l bg-white overflow-y-auto shrink-0" style={{ width: panelWidth }}>
           {selectedNodeId ? (
             <NodeDetail
               nodeId={selectedNodeId}

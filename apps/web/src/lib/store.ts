@@ -13,9 +13,6 @@ interface AppState {
   panToNodeId: string | null;
   setPanToNodeId: (id: string | null) => void;
 
-  // Lane filter
-  hiddenLanes: Set<string>;
-  toggleLane: (lane: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -27,13 +24,4 @@ export const useAppStore = create<AppState>((set) => ({
 
   panToNodeId: null,
   setPanToNodeId: (id) => set({ panToNodeId: id }),
-
-  hiddenLanes: new Set<string>(),
-  toggleLane: (lane) =>
-    set((state) => {
-      const next = new Set(state.hiddenLanes);
-      if (next.has(lane)) next.delete(lane);
-      else next.add(lane);
-      return { hiddenLanes: next };
-    }),
 }));

@@ -23,7 +23,7 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
   spec: { bg: "#EEEDFE", border: "#7F77DD", text: "#3a356a" },
 };
 
-const LANE_ORDER = ["overview", "need", "feature"];
+const LANE_ORDER = ["overview", "need", "feature", "spec"];
 
 const nodeTypes = {
   custom: NodeCard,

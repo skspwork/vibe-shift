@@ -7,14 +7,11 @@ import { SearchPanel } from "./SearchPanel";
 const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   overview: { bg: "#2E4057", border: "#1a2a3a", text: "#ffffff" },
   need: { bg: "#E6F1FB", border: "#378ADD", text: "#1a3a5c" },
-  req: { bg: "#E1F5EE", border: "#1D9E75", text: "#0d4a36" },
+  feature: { bg: "#E1F5EE", border: "#1D9E75", text: "#0d4a36" },
   spec: { bg: "#EEEDFE", border: "#7F77DD", text: "#3a356a" },
-  basic_design: { bg: "#FAEEDA", border: "#EF9F27", text: "#5a3d0a" },
-  detail_design: { bg: "#FDF2E0", border: "#D4880E", text: "#5a3d0a" },
-  code: { bg: "#EAF3DE", border: "#639922", text: "#2a4a0a" },
 };
 
-const LANE_ORDER = ["overview", "need", "req", "spec", "basic_design", "detail_design", "code"];
+const LANE_ORDER = ["overview", "need", "feature", "spec"];
 
 export function ViewToolbar({ projectId }: { projectId: string }) {
   const { hiddenLanes, toggleLane } = useAppStore();

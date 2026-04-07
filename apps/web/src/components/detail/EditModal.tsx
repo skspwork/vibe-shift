@@ -4,12 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { X, Save } from "lucide-react";
 import type { AppNode } from "@cddai/shared";
 
-type NodeWithUrl = AppNode & { url?: string | null };
 import { Markdown } from "../ui/Markdown";
 import { api } from "@/lib/api";
 
 interface Props {
-  node: NodeWithUrl;
+  node: AppNode;
   onSave: () => void;
   onClose: () => void;
 }
@@ -17,10 +16,7 @@ interface Props {
 export function EditModal({ node, onSave, onClose }: Props) {
   const [title, setTitle] = useState(node.title);
   const [content, setContent] = useState(node.content);
-  const [url, setUrl] = useState(node.url || "");
   const [saving, setSaving] = useState(false);
-
-  const hasUrl = node.type === "code";
 
   const handleClose = useCallback(() => {
     if (!saving) onClose();
@@ -37,9 +33,7 @@ export function EditModal({ node, onSave, onClose }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const data: Record<string, unknown> = { title, content };
-      if (hasUrl) data.url = url || null;
-      await api.updateNode(node.id, data);
+      await api.updateNode(node.id, { title, content });
       onSave();
       onClose();
     } finally {
@@ -101,19 +95,6 @@ export function EditModal({ node, onSave, onClose }: Props) {
                 className="flex-1 w-full border rounded-lg px-3 py-2 text-sm font-mono resize-none min-h-[300px]"
               />
             </div>
-            {hasUrl && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  URL
-                </label>
-                <input
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-            )}
           </div>
 
           {/* Right: Preview */}

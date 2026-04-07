@@ -85,17 +85,7 @@ export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: P
           )}
         </div>
 
-        {selectedType === "code" ? (
-          <div>
-            <label className="block text-xs font-medium mb-1">URL（任意）</label>
-            <input
-              {...register("url")}
-              className="w-full border rounded px-2 py-1.5 text-sm"
-              placeholder="https://..."
-            />
-          </div>
-        ) : (
-          <div>
+        <div>
             <label className="block text-xs font-medium mb-1">内容</label>
             <textarea
               {...register("content")}
@@ -104,8 +94,6 @@ export function NodeCreateForm({ parentNode, projectId, onCreated, onCancel }: P
               placeholder="詳細を記述"
             />
           </div>
-        )}
-
 
         <div className="flex gap-2">
           <button

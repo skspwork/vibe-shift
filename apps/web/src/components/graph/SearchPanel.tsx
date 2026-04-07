@@ -10,13 +10,8 @@ import { Search, X } from "lucide-react";
 const NODE_COLORS: Record<string, string> = {
   overview: "#1a2a3a",
   need: "#378ADD",
-  req: "#1D9E75",
+  feature: "#1D9E75",
   spec: "#7F77DD",
-  basic_design: "#EF9F27",
-  detail_design: "#D4880E",
-  code: "#639922",
-  task: "#D85A30",
-  test: "#D4537E",
 };
 
 interface Props {

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
 import { eq } from "drizzle-orm";
 import { db, rawDb, schema } from "../db/index.js";
-import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS, getNextActiveType } from "@cddai/shared";
+import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS, ALLOWED_CHILD_MAP } from "@cddai/shared";
 import { getNodeContext, getNodeTrace } from "../services/contextService.js";
 
 const app = new Hono();
@@ -101,11 +101,10 @@ app.post("/", async (c) => {
   const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, parsed.project_id));
   if (!project) return c.json({ error: "Project not found" }, 404);
 
-  const activeLanes = JSON.parse(project.active_lanes) as string[];
-  const expectedType = getNextActiveType(parentNode.type, activeLanes);
-  if (expectedType !== parsed.type) {
+  const allowedChildren = ALLOWED_CHILD_MAP[parentNode.type] || [];
+  if (!allowedChildren.includes(parsed.type)) {
     return c.json({
-      error: `Cannot create '${parsed.type}' as child of '${parentNode.type}'. Expected: '${expectedType}'`,
+      error: `Cannot create '${parsed.type}' as child of '${parentNode.type}'. Allowed: ${allowedChildren.join(", ")}`,
     }, 400);
   }
 
@@ -452,7 +451,7 @@ app.post("/impact", async (c) => {
   const paths = buildNodePaths(project_id);
   const REASON_ORDER: Record<string, number> = { url_match: 0, fts_match: 1, upstream_trace: 2 };
   const TYPE_ORDER: Record<string, number> = {
-    code: 0, detail_design: 1, basic_design: 2, spec: 3, req: 4, need: 5, overview: 6,
+    spec: 0, feature: 1, need: 2, overview: 3,
   };
 
   const matched_nodes = Array.from(matchedMap.values())

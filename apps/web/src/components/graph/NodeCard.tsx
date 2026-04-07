@@ -9,12 +9,19 @@ interface NodeCardData {
   colors: { bg: string; border: string; text: string };
   selected: boolean;
   dimmed: boolean;
+  isSubNode?: boolean;
 }
 
 export function NodeCard({ data }: { data: NodeCardData }) {
+  const isSubNode = data.isSubNode ?? false;
+
   return (
     <div
-      className="rounded-lg px-3 py-2 min-w-[160px] max-w-[180px] transition-opacity"
+      className={`rounded-lg transition-opacity ${
+        isSubNode
+          ? "px-2 py-1.5 min-w-[120px] max-w-[140px]"
+          : "px-3 py-2 min-w-[160px] max-w-[180px]"
+      }`}
       style={{
         backgroundColor: data.colors.bg,
         border: `2px solid ${data.selected ? "#3b82f6" : data.colors.border}`,
@@ -24,10 +31,12 @@ export function NodeCard({ data }: { data: NodeCardData }) {
       }}
     >
       <Handle type="target" position={Position.Left} className="!bg-gray-400" />
-      <div className="text-[10px] font-medium opacity-70 uppercase">
+      <div className={`font-medium opacity-70 uppercase ${isSubNode ? "text-[9px]" : "text-[10px]"}`}>
         {NODE_LABELS[data.nodeType] || data.nodeType}
       </div>
-      <div className="text-sm font-semibold truncate">{data.label}</div>
+      <div className={`font-semibold truncate ${isSubNode ? "text-xs" : "text-sm"}`}>
+        {data.label}
+      </div>
       <Handle type="source" position={Position.Right} className="!bg-gray-400" />
     </div>
   );

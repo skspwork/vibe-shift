@@ -3,11 +3,8 @@ import { z } from "zod";
 export const NodeType = z.enum([
   "overview",
   "need",
-  "req",
+  "feature",
   "spec",
-  "basic_design",
-  "detail_design",
-  "code",
 ]);
 
 export const CreatedBy = z.enum(["user", "ai"]);
@@ -15,47 +12,32 @@ export const CreatedBy = z.enum(["user", "ai"]);
 export const LinkType = z.enum(["derives", "references", "tests"]);
 
 export const VISIBLE_NODE_TYPES = [
-  "overview",
-  "need",
-  "req",
-  "spec",
-  "basic_design",
-  "detail_design",
-  "code",
+  "overview", "need", "feature", "spec",
 ] as const;
 
 export const LANE_TYPES = [
   "need",
-  "req",
-  "spec",
-  "basic_design",
-  "detail_design",
-  "code",
+  "feature",
 ] as const;
+
+export const FEATURE_SUB_TYPES = ["spec"] as const;
 
 export const CHILD_TYPE_MAP: Record<string, string[]> = {
   overview: ["need"],
-  need: ["req"],
-  req: ["spec"],
-  spec: ["basic_design"],
-  basic_design: ["detail_design"],
-  detail_design: ["code"],
-  code: [],
+  need: ["feature"],
+  feature: ["spec"],
+  spec: [],
 };
 
-// 許容子ノードマップ（下位工程すべて許可）
 export const ALLOWED_CHILD_MAP: Record<string, string[]> = {
-  overview: ["need", "req", "spec", "basic_design", "detail_design", "code"],
-  need: ["req", "spec", "basic_design", "detail_design", "code"],
-  req: ["spec", "basic_design", "detail_design", "code"],
-  spec: ["basic_design", "detail_design", "code"],
-  basic_design: ["detail_design", "code"],
-  detail_design: ["code"],
-  code: [],
+  overview: ["need"],
+  need: ["feature"],
+  feature: ["spec"],
+  spec: [],
 };
 
 export const HIERARCHY_ORDER = [
-  "overview", "need", "req", "spec", "basic_design", "detail_design", "code",
+  "overview", "need", "feature", "spec",
 ] as const;
 
 export function getChildTypeMap(): Record<string, string[]> {
@@ -80,29 +62,31 @@ export function getNextActiveType(parentType: string, activeLanes: string[]): st
   return null;
 }
 
-export const GUIDANCE_TEXT = "全レイヤー（要求→要件→仕様→基本設計→詳細設計）を順番に定義してください。各段階を丁寧に掘り下げてからノードを作成してください。";
+export const GUIDANCE_TEXT = "要求 → 機能 → 仕様 の順に定義してください。1つの要求から複数の機能、1つの機能から複数の仕様を作成できます。";
 
 export const NODE_LABELS: Record<string, string> = {
   overview: "システム概要",
   need: "要求",
-  req: "要件",
+  feature: "機能",
   spec: "仕様",
-  basic_design: "基本設計",
-  detail_design: "詳細設計",
-  code: "コード",
 };
 
 export const DEFAULT_NODE_INSTRUCTIONS: Record<string, string> = {
   need: "ステークホルダーの視点で「誰が・何を・なぜ」必要としているかを記述",
-  req: "要求を満たすために必要な機能要件・非機能要件を具体的に記述",
-  spec: "要件を実現するための技術仕様・入出力・制約条件を記述",
-  basic_design: "API定義、DBテーブル設計、画面遷移図をMermaid記法で記述",
-  detail_design: "クラス図、シーケンス図、アルゴリズムをMermaid記法で記述",
-  code: "PR URL、実装の概要、対応するブランチ名を記述",
+  feature: "要求を満たすための機能を具体的に記述。機能の目的・概要・主要なユースケースを含める",
+  spec: `機能を実現するための仕様・入出力・制約条件を記述
+1. 機能概要
+2. 事前条件・事後条件
+3. 正常フロー（番号付きステップ）
+4. 代替フロー・例外フロー
+5. 入出力項目定義（項目名／型／必須・任意／バリデーション）
+6. 業務ルール一覧
+7. エラーメッセージ一覧
+実装の話は含めず、"何をするか"に徹してください。`,
 };
 
 export const NodeInstructionsSchema = z.record(
-  z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"]),
+  z.enum(["need", "feature", "spec"]),
   z.string()
 ).optional();
 
@@ -112,7 +96,7 @@ export const CreateProjectSchema = z.object({
   scope: z.string().optional(),
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
-  active_lanes: z.array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"])),
+  active_lanes: z.array(z.enum(["need", "feature"])),
   node_instructions: NodeInstructionsSchema,
 });
 
@@ -122,7 +106,7 @@ export const UpdateProjectSchema = z.object({
   scope: z.string().optional(),
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
-  active_lanes: z.array(z.enum(["need", "req", "spec", "basic_design", "detail_design", "code"])).optional(),
+  active_lanes: z.array(z.enum(["need", "feature"])).optional(),
   node_instructions: NodeInstructionsSchema,
 });
 

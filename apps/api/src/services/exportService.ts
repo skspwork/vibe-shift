@@ -5,11 +5,8 @@ import { NODE_LABELS } from "@cddai/shared";
 const LANE_ORDER = [
   "overview",
   "need",
-  "req",
+  "feature",
   "spec",
-  "basic_design",
-  "detail_design",
-  "code",
 ] as const;
 
 // Custom renderer: convert mermaid code blocks to <pre class="mermaid">

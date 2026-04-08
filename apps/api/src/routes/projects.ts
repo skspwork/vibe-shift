@@ -200,25 +200,25 @@ app.delete("/:id", async (c) => {
     .where(eq(schema.nodes.project_id, id));
   const nodeIds = projectNodes.map((n) => n.id);
 
-  // Get all conversation IDs belonging to this project
-  const projectConvs = await db
-    .select({ id: schema.conversations.id })
-    .from(schema.conversations)
-    .where(eq(schema.conversations.project_id, id));
-  const convIds = projectConvs.map((c) => c.id);
+  // Get all changelog IDs belonging to this project
+  const projectChangelogs = await db
+    .select({ id: schema.changelogs.id })
+    .from(schema.changelogs)
+    .where(eq(schema.changelogs.project_id, id));
+  const changelogIds = projectChangelogs.map((c) => c.id);
 
-  // Delete conv_messages for these conversations
-  if (convIds.length > 0) {
+  // Delete changelog_reasons for these changelogs
+  if (changelogIds.length > 0) {
     await db
-      .delete(schema.conv_messages)
-      .where(inArray(schema.conv_messages.conversation_id, convIds));
+      .delete(schema.changelog_reasons)
+      .where(inArray(schema.changelog_reasons.changelog_id, changelogIds));
   }
 
   if (nodeIds.length > 0) {
-    // Delete node_conversations for these nodes
+    // Delete node_changelogs for these nodes
     await db
-      .delete(schema.node_conversations)
-      .where(inArray(schema.node_conversations.node_id, nodeIds));
+      .delete(schema.node_changelogs)
+      .where(inArray(schema.node_changelogs.node_id, nodeIds));
 
     // Delete edges referencing these nodes
     await db
@@ -234,11 +234,11 @@ app.delete("/:id", async (c) => {
       .where(eq(schema.nodes.project_id, id));
   }
 
-  // Delete conversations
-  if (convIds.length > 0) {
+  // Delete changelogs
+  if (changelogIds.length > 0) {
     await db
-      .delete(schema.conversations)
-      .where(eq(schema.conversations.project_id, id));
+      .delete(schema.changelogs)
+      .where(eq(schema.changelogs.project_id, id));
   }
 
   // Delete the project

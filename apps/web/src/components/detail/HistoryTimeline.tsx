@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-interface ConvEntry {
-  conversation: { id: string; title: string; created_at: string };
+interface ChangelogEntry {
+  changelog: { id: string; title: string; created_at: string };
   purpose: string;
   linked_at: string;
-  messages: { role: "user" | "assistant"; content: string }[];
+  reason: string;
 }
 
 const PURPOSE_STYLES: Record<string, string> = {
@@ -27,14 +27,7 @@ function formatDate(iso: string): string {
   });
 }
 
-function extractReason(entry: ConvEntry): string {
-  const assistantMsg = entry.messages.find((m) => m.role === "assistant");
-  if (assistantMsg) return assistantMsg.content;
-  if (entry.messages.length > 0) return entry.messages[0].content;
-  return entry.conversation.title;
-}
-
-export function HistoryTimeline({ entries }: { entries: ConvEntry[] }) {
+export function HistoryTimeline({ entries }: { entries: ChangelogEntry[] }) {
   const sorted = [...entries].sort(
     (a, b) => new Date(a.linked_at).getTime() - new Date(b.linked_at).getTime()
   );
@@ -43,7 +36,7 @@ export function HistoryTimeline({ entries }: { entries: ConvEntry[] }) {
     <div>
       {sorted.map((entry, i) => (
         <TimelineEntry
-          key={entry.conversation.id + entry.linked_at}
+          key={entry.changelog.id + entry.linked_at}
           entry={entry}
           isLast={i === sorted.length - 1}
         />
@@ -52,17 +45,16 @@ export function HistoryTimeline({ entries }: { entries: ConvEntry[] }) {
   );
 }
 
-function TimelineEntry({ entry, isLast }: { entry: ConvEntry; isLast: boolean }) {
+function TimelineEntry({ entry, isLast }: { entry: ChangelogEntry; isLast: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [clamped, setClamped] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
-  const reason = extractReason(entry);
   const badgeStyle = PURPOSE_STYLES[entry.purpose] || "bg-gray-100 text-gray-600";
 
   useEffect(() => {
     const el = textRef.current;
     if (el) setClamped(el.scrollHeight > el.clientHeight);
-  }, [reason]);
+  }, [entry.reason]);
 
   return (
     <div className="flex gap-2.5 items-stretch">
@@ -86,7 +78,7 @@ function TimelineEntry({ entry, isLast }: { entry: ConvEntry; isLast: boolean })
             !expanded ? "line-clamp-3" : ""
           }`}
         >
-          {reason}
+          {entry.reason}
         </p>
 
         {clamped && (

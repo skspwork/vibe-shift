@@ -118,7 +118,7 @@ app.post("/", async (c) => {
     title: parsed.title,
     content: parsed.content,
     url: parsed.url || null,
-    conversation_id: parsed.conversation_id || null,
+    changelog_id: parsed.changelog_id || null,
     created_by: parsed.created_by,
     created_at: now,
     updated_at: now,
@@ -133,12 +133,12 @@ app.post("/", async (c) => {
     created_at: now,
   });
 
-  // Link conversation via junction table
-  if (parsed.conversation_id) {
-    await db.insert(schema.node_conversations).values({
+  // Link changelog via junction table
+  if (parsed.changelog_id) {
+    await db.insert(schema.node_changelogs).values({
       id: uuid(),
       node_id: nodeId,
-      conversation_id: parsed.conversation_id,
+      changelog_id: parsed.changelog_id,
       purpose: "作成時",
       linked_at: now,
     });
@@ -255,21 +255,21 @@ app.patch("/:id", async (c) => {
   const parsed = UpdateNodeSchema.parse(body);
   const now = new Date().toISOString();
 
-  // Extract conversation fields (don't write to nodes table)
-  const { conversation_id, conversation_purpose, ...nodeUpdates } = parsed;
+  // Extract changelog fields (don't write to nodes table)
+  const { changelog_id, changelog_purpose, ...nodeUpdates } = parsed;
 
   await db
     .update(schema.nodes)
     .set({ ...nodeUpdates, updated_at: now })
     .where(eq(schema.nodes.id, id));
 
-  // Link conversation via junction table (append, not overwrite)
-  if (conversation_id) {
-    await db.insert(schema.node_conversations).values({
+  // Link changelog via junction table (append, not overwrite)
+  if (changelog_id) {
+    await db.insert(schema.node_changelogs).values({
       id: uuid(),
       node_id: id,
-      conversation_id,
-      purpose: conversation_purpose || "更新",
+      changelog_id,
+      purpose: changelog_purpose || "更新",
       linked_at: now,
     });
   }
@@ -359,56 +359,56 @@ app.patch("/:id/enable", async (c) => {
   return c.json({ ok: true, enabled_count: toEnable.size });
 });
 
-app.get("/:id/conv", async (c) => {
+app.get("/:id/changelogs", async (c) => {
   const nodeId = c.req.param("id");
   if (!getActiveNode(nodeId)) return c.json({ error: "Not found" }, 404);
 
-  // Get all linked conversations via junction table
+  // Get all linked changelogs via junction table
   const links = rawDb.prepare(`
-    SELECT nc.purpose, nc.linked_at, c.id, c.title, c.created_at
-    FROM node_conversations nc
-    JOIN conversations c ON c.id = nc.conversation_id
+    SELECT nc.purpose, nc.linked_at, cl.id, cl.title, cl.created_at
+    FROM node_changelogs nc
+    JOIN changelogs cl ON cl.id = nc.changelog_id
     WHERE nc.node_id = ?
     ORDER BY nc.linked_at ASC
   `).all(nodeId) as any[];
 
   if (links.length === 0) {
-    // Fallback: check legacy conversation_id on node
+    // Fallback: check legacy changelog_id on node
     const [node] = await db
       .select()
       .from(schema.nodes)
       .where(eq(schema.nodes.id, nodeId));
-    if (!node?.conversation_id) return c.json([]);
+    if (!node?.changelog_id) return c.json([]);
 
-    const [conversation] = await db
+    const [changelog] = await db
       .select()
-      .from(schema.conversations)
-      .where(eq(schema.conversations.id, node.conversation_id));
-    if (!conversation) return c.json([]);
+      .from(schema.changelogs)
+      .where(eq(schema.changelogs.id, node.changelog_id));
+    if (!changelog) return c.json([]);
 
-    const messages = await db
+    const reasons = await db
       .select()
-      .from(schema.conv_messages)
-      .where(eq(schema.conv_messages.conversation_id, conversation.id));
+      .from(schema.changelog_reasons)
+      .where(eq(schema.changelog_reasons.changelog_id, changelog.id));
 
     return c.json([{
-      conversation,
+      changelog,
       purpose: "作成時",
-      linked_at: conversation.created_at,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      linked_at: changelog.created_at,
+      reason: reasons[0]?.content || changelog.title,
     }]);
   }
 
-  // Fetch messages for each linked conversation
+  // Fetch reason for each linked changelog
   const result = links.map((link: any) => {
-    const messages = rawDb.prepare(
-      "SELECT role, content FROM conv_messages WHERE conversation_id = ? ORDER BY created_at ASC"
+    const reasons = rawDb.prepare(
+      "SELECT role, content FROM changelog_reasons WHERE changelog_id = ? ORDER BY created_at ASC"
     ).all(link.id) as any[];
     return {
-      conversation: { id: link.id, title: link.title, created_at: link.created_at },
+      changelog: { id: link.id, title: link.title, created_at: link.created_at },
       purpose: link.purpose,
       linked_at: link.linked_at,
-      messages,
+      reason: reasons[0]?.content || link.title,
     };
   });
 

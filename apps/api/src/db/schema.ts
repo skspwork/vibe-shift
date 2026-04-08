@@ -9,7 +9,7 @@ export const projects = sqliteTable("projects", {
   created_at: text("created_at").notNull(),
 });
 
-export const conversations = sqliteTable("conversations", {
+export const changelogs = sqliteTable("changelogs", {
   id: text("id").primaryKey(),
   project_id: text("project_id")
     .notNull()
@@ -27,7 +27,7 @@ export const nodes = sqliteTable("nodes", {
   title: text("title").notNull(),
   content: text("content").notNull().default(""),
   url: text("url"),
-  conversation_id: text("conversation_id").references(() => conversations.id),
+  changelog_id: text("changelog_id").references(() => changelogs.id),
   created_by: text("created_by").notNull().default("user"),
   created_at: text("created_at").notNull(),
   updated_at: text("updated_at").notNull(),
@@ -46,23 +46,23 @@ export const edges = sqliteTable("edges", {
   created_at: text("created_at").notNull(),
 });
 
-export const node_conversations = sqliteTable("node_conversations", {
+export const node_changelogs = sqliteTable("node_changelogs", {
   id: text("id").primaryKey(),
   node_id: text("node_id")
     .notNull()
     .references(() => nodes.id),
-  conversation_id: text("conversation_id")
+  changelog_id: text("changelog_id")
     .notNull()
-    .references(() => conversations.id),
+    .references(() => changelogs.id),
   purpose: text("purpose").notNull().default("作成時"),
   linked_at: text("linked_at").notNull(),
 });
 
-export const conv_messages = sqliteTable("conv_messages", {
+export const changelog_reasons = sqliteTable("changelog_reasons", {
   id: text("id").primaryKey(),
-  conversation_id: text("conversation_id")
+  changelog_id: text("changelog_id")
     .notNull()
-    .references(() => conversations.id),
+    .references(() => changelogs.id),
   role: text("role").notNull(),
   content: text("content").notNull(),
   created_at: text("created_at").notNull(),

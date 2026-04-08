@@ -6,7 +6,7 @@ import projects from "./routes/projects.js";
 import nodes from "./routes/nodes.js";
 import edges from "./routes/edges.js";
 import graph from "./routes/graph.js";
-import conversations from "./routes/conversations.js";
+import changelogs from "./routes/changelogs.js";
 import { db, schema } from "./db/index.js";
 import { sql } from "drizzle-orm";
 import Database from "better-sqlite3";
@@ -29,7 +29,7 @@ function initDb() {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS conversations (
+    CREATE TABLE IF NOT EXISTS changelogs (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id),
       title TEXT NOT NULL,
@@ -43,7 +43,7 @@ function initDb() {
       title TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
       rationale_note TEXT,
-      conversation_id TEXT REFERENCES conversations(id),
+      changelog_id TEXT REFERENCES changelogs(id),
       created_by TEXT NOT NULL DEFAULT 'user',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -58,18 +58,18 @@ function initDb() {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS conv_messages (
+    CREATE TABLE IF NOT EXISTS changelog_reasons (
       id TEXT PRIMARY KEY,
-      conversation_id TEXT NOT NULL REFERENCES conversations(id),
+      changelog_id TEXT NOT NULL REFERENCES changelogs(id),
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS node_conversations (
+    CREATE TABLE IF NOT EXISTS node_changelogs (
       id TEXT PRIMARY KEY,
       node_id TEXT NOT NULL REFERENCES nodes(id),
-      conversation_id TEXT NOT NULL REFERENCES conversations(id),
+      changelog_id TEXT NOT NULL REFERENCES changelogs(id),
       purpose TEXT NOT NULL DEFAULT '作成時',
       linked_at TEXT NOT NULL
     );
@@ -89,19 +89,39 @@ function initDb() {
     // Column already exists
   }
 
-  // Migrate existing nodes.conversation_id → node_conversations
+  // ─── Migrate old table names to new names ───
+  try {
+    const oldExists = sqlite.prepare("SELECT COUNT(*) as c FROM conversations").get() as any;
+    const newExists = sqlite.prepare("SELECT COUNT(*) as c FROM changelogs").get() as any;
+    if (oldExists.c > 0 && newExists.c === 0) {
+      sqlite.exec("INSERT OR IGNORE INTO changelogs SELECT * FROM conversations");
+      sqlite.exec("INSERT OR IGNORE INTO changelog_reasons SELECT * FROM conv_messages");
+      sqlite.exec("INSERT OR IGNORE INTO node_changelogs SELECT * FROM node_conversations");
+    }
+  } catch {
+    // Old tables don't exist, skip migration
+  }
+
+  // Rename conversation_id → changelog_id in nodes table
+  try {
+    sqlite.exec("ALTER TABLE nodes RENAME COLUMN conversation_id TO changelog_id");
+  } catch {
+    // Column already renamed
+  }
+
+  // Migrate existing nodes.changelog_id → node_changelogs
   const existing = sqlite.prepare(
-    "SELECT id, conversation_id, created_at FROM nodes WHERE conversation_id IS NOT NULL"
+    "SELECT id, changelog_id, created_at FROM nodes WHERE changelog_id IS NOT NULL"
   ).all() as any[];
   for (const row of existing) {
     const alreadyMigrated = sqlite.prepare(
-      "SELECT 1 FROM node_conversations WHERE node_id = ? AND conversation_id = ?"
-    ).get(row.id, row.conversation_id);
+      "SELECT 1 FROM node_changelogs WHERE node_id = ? AND changelog_id = ?"
+    ).get(row.id, row.changelog_id);
     if (!alreadyMigrated) {
       const ncId = uuidv4();
       sqlite.prepare(
-        "INSERT INTO node_conversations (id, node_id, conversation_id, purpose, linked_at) VALUES (?, ?, ?, ?, ?)"
-      ).run(ncId, row.id, row.conversation_id, "作成時", row.created_at);
+        "INSERT INTO node_changelogs (id, node_id, changelog_id, purpose, linked_at) VALUES (?, ?, ?, ?, ?)"
+      ).run(ncId, row.id, row.changelog_id, "作成時", row.created_at);
     }
   }
 
@@ -126,7 +146,7 @@ app.route("/projects", projects);
 app.route("/nodes", nodes);
 app.route("/edges", edges);
 app.route("/projects", graph);
-app.route("/conversations", conversations);
+app.route("/changelogs", changelogs);
 
 app.get("/", (c) => c.json({ status: "ok", service: "CddAI API" }));
 

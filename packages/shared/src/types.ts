@@ -31,7 +31,7 @@ export interface AppNode {
   type: NodeTypeValue;
   title: string;
   content: string;
-  conversation_id: string | null;
+  changelog_id: string | null;
   created_by: CreatedByValue;
   created_at: string;
   updated_at: string;
@@ -50,19 +50,16 @@ export interface GraphData {
   edges: AppEdge[];
 }
 
-export interface ConvMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-export interface Conversation {
+export interface Changelog {
   id: string;
   project_id: string;
   title: string;
   created_at: string;
 }
 
-export interface ConvData {
-  conversation: Conversation;
-  messages: ConvMessage[];
+export interface ChangelogEntry {
+  changelog: Changelog;
+  purpose: string;
+  linked_at: string;
+  reason: string;
 }

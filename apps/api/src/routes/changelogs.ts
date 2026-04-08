@@ -12,7 +12,7 @@ app.post("/", async (c) => {
 
   const id = uuid();
   const now = new Date().toISOString();
-  await db.insert(schema.conversations).values({
+  await db.insert(schema.changelogs).values({
     id,
     project_id,
     title,
@@ -24,33 +24,33 @@ app.post("/", async (c) => {
 
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const [conv] = await db
+  const [changelog] = await db
     .select()
-    .from(schema.conversations)
-    .where(eq(schema.conversations.id, id));
-  if (!conv) return c.json({ error: "Not found" }, 404);
+    .from(schema.changelogs)
+    .where(eq(schema.changelogs.id, id));
+  if (!changelog) return c.json({ error: "Not found" }, 404);
 
-  const messages = await db
+  const reasons = await db
     .select()
-    .from(schema.conv_messages)
-    .where(eq(schema.conv_messages.conversation_id, id));
+    .from(schema.changelog_reasons)
+    .where(eq(schema.changelog_reasons.changelog_id, id));
 
   return c.json({
-    conversation: conv,
-    messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    changelog,
+    reasons: reasons.map((r) => ({ role: r.role, content: r.content })),
   });
 });
 
-app.post("/:id/messages", async (c) => {
-  const conversationId = c.req.param("id");
+app.post("/:id/reasons", async (c) => {
+  const changelogId = c.req.param("id");
   const body = await c.req.json();
   const { role, content } = body;
   if (!role || !content) return c.json({ error: "role and content required" }, 400);
 
   const msgId = uuid();
-  await db.insert(schema.conv_messages).values({
+  await db.insert(schema.changelog_reasons).values({
     id: msgId,
-    conversation_id: conversationId,
+    changelog_id: changelogId,
     role,
     content,
     created_at: new Date().toISOString(),

@@ -42,7 +42,7 @@ pnpm dev
 
 | ツール | 説明 |
 |-------|------|
-| `create_conversation` | 会話(conv)ノード作成 |
+| `create_changelog` | 変遷記録作成 |
 | `create_node` | ノード作成 |
 | `update_node` | ノード更新 |
 | `link_nodes` | エッジ作成 |

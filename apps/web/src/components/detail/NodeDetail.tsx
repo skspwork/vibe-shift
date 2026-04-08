@@ -26,9 +26,9 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
     queryFn: () => api.getNode(nodeId),
   });
 
-  const { data: convDataList } = useQuery({
-    queryKey: ["node-conv", nodeId],
-    queryFn: () => api.getNodeConv(nodeId),
+  const { data: changelogList } = useQuery({
+    queryKey: ["node-changelogs", nodeId],
+    queryFn: () => api.getNodeChangelogs(nodeId),
   });
 
   if (!node) return <div className="p-4 text-gray-400">読み込み中...</div>;
@@ -101,7 +101,7 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
 
       <RationaleSection
         node={node}
-        convDataList={convDataList || []}
+        changelogList={changelogList || []}
       />
 
 

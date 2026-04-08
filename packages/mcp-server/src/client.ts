@@ -50,13 +50,13 @@ export const apiClient = {
   getNodeContext: (id: string) => request<any>(`/nodes/${id}/context`),
   getNodeTrace: (id: string, direction = "both") =>
     request<any>(`/nodes/${id}/trace?direction=${direction}`),
-  getNodeConv: (id: string) => request<any>(`/nodes/${id}/conv`),
+  getNodeChangelogs: (id: string) => request<any>(`/nodes/${id}/changelogs`),
 
-  // Conversations
-  createConversation: (data: { project_id: string; title: string }) =>
-    request<any>("/conversations", { method: "POST", body: JSON.stringify(data) }),
-  addConvMessage: (conversationId: string, role: string, content: string) =>
-    request<any>(`/conversations/${conversationId}/messages`, {
+  // Changelogs
+  createChangelog: (data: { project_id: string; title: string }) =>
+    request<any>("/changelogs", { method: "POST", body: JSON.stringify(data) }),
+  addChangelogReason: (changelogId: string, role: string, content: string) =>
+    request<any>(`/changelogs/${changelogId}/reasons`, {
       method: "POST",
       body: JSON.stringify({ role, content }),
     }),

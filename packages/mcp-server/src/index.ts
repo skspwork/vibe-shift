@@ -53,7 +53,7 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
    - 関連するノードがあれば言及する
 3. **提案し、承認を得てからノードを作成する**
    - ノード内容をテキストで提示し、ユーザーの合意を得てから create_node を実行
-   - create_conversation → create_node（conversation_idを指定）の順で経緯を記録
+   - create_changelog → create_node（changelog_idを指定）の順で経緯を記録
 4. **段階的に深掘りを提案する**
    - need作成後は「機能に落とし込みますか？」と提案
    - feature → spec と段階的に進める
@@ -93,12 +93,12 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
 ## ワークフロー原則
 1. **ノードを作成する前に、必ずユーザーにヒアリングしてください**
 2. 提案内容をテキストで提示し、ユーザーの合意を得てからcreate_nodeを実行してください
-3. create_conversationで会話を作成し、create_nodeのconversation_idに紐付けてください
+3. create_changelogで変更履歴を作成し、create_nodeのchangelog_idに紐付けてください
 4. 一度に大量のノードを作成せず、段階的にユーザーと確認しながら進めてください
 
-## 会話ログの記録方法
-1. create_conversationで会話を作成（user_message, ai_messageを保存）
-2. create_nodeのconversation_idに会話IDを指定（生成経緯がWeb UIに表示される）
+## 変更履歴の方法
+1. create_changelogで変更履歴を作成（理由を保存）
+2. create_nodeのchangelog_idに変更履歴IDを指定（変更履歴がWeb UIに表示される）
 
 ## コンテンツのフォーマット
 - ノードのcontent、プロジェクトのpurpose/scope/constraints等、すべてのテキストはマークダウン形式で記述してください
@@ -172,7 +172,7 @@ ${existingNodes}
 - ユーザーに質問を投げて、要求（need）の背景・目的・スコープを聞き出してください
 - 「誰が」「何を」「なぜ」必要としているかを明確にしてください
 - 1つの質問に対して1つずつ回答を待ってください
-- この段階では絶対にcreate_nodeやcreate_conversationを呼ばないでください
+- この段階では絶対にcreate_nodeやcreate_changelogを呼ばないでください
 
 ### Phase 2: 提案
 - ヒアリング内容をもとに、作成するノードの内容をマークダウン形式で提案してください
@@ -183,8 +183,8 @@ ${existingNodes}
 
 ### Phase 3: 登録
 - ユーザーの承認を得たら、以下の手順でノードを作成してください:
-  1. create_conversationで会話を作成（project_idを指定）
-  2. create_nodeでノードを作成（conversation_idを指定して経緯を紐付け）
+  1. create_changelogで変更履歴を作成（project_idを指定）
+  2. create_nodeでノードを作成（changelog_idを指定して経緯を紐付け）
 - 作成完了後、次のステップを提案してください
 
 ## parent_idの指定ルール（重要）
@@ -268,8 +268,8 @@ ${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructi
 - ユーザーの承認を待ってください
 
 ### Phase 3: 登録
-- 承認後にcreate_conversation→create_nodeの順で作成してください
-- conversation_idを必ず指定して経緯を紐付けてください
+- 承認後にcreate_changelog→create_nodeの順で作成してください
+- changelog_idを必ず指定して経緯を紐付けてください
 
 ## parent_idの指定ルール（重要）
 - create_nodeのparent_idには、**この対象ノードのID（${node_id}）** を指定してください
@@ -285,14 +285,14 @@ ${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructi
   }
 );
 
-// ─── Tool 1: create_conversation ───
+// ─── Tool 1: create_changelog ───
 server.registerTool(
-  "create_conversation",
+  "create_changelog",
   {
     description:
-      "会話を作成する。ノード作成前にまずこのツールで会話を作成し、返却されたconversation IDをcreate_nodeのconversation_idに渡すことで生成経緯が記録される。user_messageとai_messageを指定すると会話ログとして保存される。【注意】ユーザーとのヒアリング・合意形成が完了してから呼び出すこと。",
+      "変更履歴を作成する。ノード作成前にまずこのツールで変更履歴を作成し、返却されたchangelog IDをcreate_nodeのchangelog_idに渡すことで変更履歴が記録される。reasonを指定すると理由として保存される。【注意】ユーザーとのヒアリング・合意形成が完了してから呼び出すこと。",
     annotations: {
-      title: "会話作成",
+      title: "変更履歴作成",
       destructiveHint: false,
       readOnlyHint: false,
       idempotentHint: false,
@@ -300,27 +300,22 @@ server.registerTool(
     },
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
-      summary: z.string().describe("会話の要約（会話のタイトルになる）"),
-      user_message: z.string().optional().describe("ユーザーの発言（会話ログとして保存）"),
-      ai_message: z.string().optional().describe("AIの応答（会話ログとして保存）"),
+      summary: z.string().describe("変更履歴の要約（タイトルになる）"),
+      reason: z.string().optional().describe("理由（変更履歴として保存）"),
     },
   },
-  safeHandler(async ({ project_id, summary, user_message, ai_message }) => {
-    const conversation = await apiClient.createConversation({
+  safeHandler(async ({ project_id, summary, reason }) => {
+    const changelog = await apiClient.createChangelog({
       project_id,
       title: summary,
     });
 
-    // Save conversation messages if provided
-    if (user_message) {
-      await apiClient.addConvMessage(conversation.id, "user", user_message);
-    }
-    if (ai_message) {
-      await apiClient.addConvMessage(conversation.id, "assistant", ai_message);
+    if (reason) {
+      await apiClient.addChangelogReason(changelog.id, "assistant", reason);
     }
 
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(conversation, null, 2) }],
+      content: [{ type: "text" as const, text: JSON.stringify(changelog, null, 2) }],
     };
   })
 );
@@ -330,7 +325,7 @@ server.registerTool(
   "create_node",
   {
     description:
-      "ノードを作成し、親ノードにリンクする。種別: need, feature, spec。conversation_idは必須。必ず先にcreate_conversationで会話を作成し、そのIDを指定すること。Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
+      "ノードを作成し、親ノードにリンクする。種別: need, feature, spec。changelog_idは必須。必ず先にcreate_changelogで変更履歴を作成し、そのIDを指定すること。Web UIの詳細パネルで変更履歴が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
     annotations: {
       title: "ノード作成",
       destructiveHint: false,
@@ -346,21 +341,21 @@ server.registerTool(
       title: z.string().describe("タイトル（10文字程度）"),
       content: z.string().describe("詳細内容（マークダウン形式で記述）"),
       parent_id: z.string().uuid().describe("親ノードID（グラフ上の親）"),
-      conversation_id: z
+      changelog_id: z
         .string()
         .uuid()
-        .describe("会話ID（必須。先にcreate_conversationで作成したIDを指定）"),
+        .describe("変更履歴ID（必須。先にcreate_changelogで作成したIDを指定）"),
       url: z.string().optional().describe("外部URL（任意）"),
     },
   },
-  safeHandler(async ({ project_id, type, title, content, parent_id, conversation_id, url }) => {
+  safeHandler(async ({ project_id, type, title, content, parent_id, changelog_id, url }) => {
     const node = await apiClient.createNode({
       project_id,
       type,
       title,
       content,
       parent_id,
-      conversation_id,
+      changelog_id,
       url,
       created_by: "ai",
     });
@@ -374,7 +369,7 @@ server.registerTool(
 server.registerTool(
   "update_node",
   {
-    description: "既存ノードのタイトル・内容を更新する。reason（変更理由）は必須で、自動的に会話ログとして記録される。【注意】更新内容をユーザーに提示し、承認を得てから呼び出すこと。大幅な変更の場合はcheck_impactで下流ノードへの影響も確認すること。",
+    description: "既存ノードのタイトル・内容を更新する。reason(変更理由)は必須で、自動的に変更履歴として記録される。【注意】更新内容をユーザーに提示し、承認を得てから呼び出すこと。大幅な変更の場合はcheck_impactで下流ノードへの影響も確認すること。",
     annotations: {
       title: "ノード更新",
       destructiveHint: false,
@@ -392,18 +387,18 @@ server.registerTool(
   safeHandler(async ({ node_id, title, content, reason }) => {
     const node = await apiClient.getNode(node_id);
 
-    // 会話を自動作成し、reasonをAIメッセージとして記録
-    const conv = await apiClient.createConversation({
+    // 変更履歴を自動作成し、reasonを記録
+    const cl = await apiClient.createChangelog({
       project_id: node.project_id,
       title: `更新: ${node.title}`,
     });
-    await apiClient.addConvMessage(conv.id, "assistant", reason);
+    await apiClient.addChangelogReason(cl.id, "assistant", reason);
 
     const updates: Record<string, any> = {};
     if (title !== undefined) updates.title = title;
     if (content !== undefined) updates.content = content;
-    updates.conversation_id = conv.id;
-    updates.conversation_purpose = "更新";
+    updates.changelog_id = cl.id;
+    updates.changelog_purpose = "更新";
 
     const updated = await apiClient.updateNode(node_id, updates);
     return {
@@ -417,7 +412,7 @@ server.registerTool(
   "delete_node",
   {
     description:
-      "ノードを非活性化（disable）する。対象ノードとその子孫ノードがすべて非活性化され、グラフ表示から非表示になる。データは保持される。overviewノードは非活性化不可。reason（理由）は必須で、会話ログとして自動記録される。",
+      "ノードを非活性化（disable）する。対象ノードとその子孫ノードがすべて非活性化され、グラフ表示から非表示になる。データは保持される。overviewノードは非活性化不可。reason（理由）は必須で、変更履歴として自動記録される。",
     annotations: {
       title: "ノード非活性化",
       destructiveHint: false,
@@ -432,13 +427,12 @@ server.registerTool(
   },
   safeHandler(async ({ node_id, reason }) => {
     const node = await apiClient.getNode(node_id);
-    const conv = await apiClient.createConversation({
+    const cl = await apiClient.createChangelog({
       project_id: node.project_id,
       title: `非活性化: ${node.title}`,
     });
-    await apiClient.addConvMessage(conv.id, "assistant", reason);
-    // Link conversation to the node
-    await apiClient.updateNode(node_id, { conversation_id: conv.id, conversation_purpose: "非活性化" });
+    await apiClient.addChangelogReason(cl.id, "assistant", reason);
+    await apiClient.updateNode(node_id, { changelog_id: cl.id, changelog_purpose: "非活性化" });
 
     const result = await apiClient.deleteNode(node_id);
     return {
@@ -452,7 +446,7 @@ server.registerTool(
   "enable_node",
   {
     description:
-      "非活性化されたノードを再活性化する。対象ノードとその子孫ノードがすべて活性化され、グラフ表示に復帰する。reason（理由）は必須で、会話ログとして自動記録される。",
+      "非活性化されたノードを再活性化する。対象ノードとその子孫ノードがすべて活性化され、グラフ表示に復帰する。reason（理由）は必須で、変更履歴として自動記録される。",
     annotations: {
       title: "ノード活性化",
       destructiveHint: false,
@@ -469,14 +463,14 @@ server.registerTool(
     // Enable first (node is disabled, so getNode would 404)
     const result = await apiClient.enableNode(node_id);
 
-    // Now node is active, so we can get its info and record the conversation
+    // Now node is active, so we can get its info and record the changelog
     const node = await apiClient.getNode(node_id);
-    const conv = await apiClient.createConversation({
+    const cl = await apiClient.createChangelog({
       project_id: node.project_id,
       title: `活性化: ${node.title}`,
     });
-    await apiClient.addConvMessage(conv.id, "assistant", reason);
-    await apiClient.updateNode(node_id, { conversation_id: conv.id, conversation_purpose: "活性化" });
+    await apiClient.addChangelogReason(cl.id, "assistant", reason);
+    await apiClient.updateNode(node_id, { changelog_id: cl.id, changelog_purpose: "活性化" });
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
@@ -897,17 +891,17 @@ server.registerTool(
   })
 );
 
-// ─── Prompt 4: bootstrap_from_conversation ───
+// ─── Prompt 4: bootstrap_from_context ───
 server.registerPrompt(
-  "bootstrap_from_conversation",
+  "bootstrap_from_context",
   {
     description:
       "現在の会話内容からCddAIプロジェクトを新規作成し、要求・要件ノードを自動抽出するワークフロー。普段の会話の途中で「これをプロジェクト化したい」と思ったときに使用。",
     argsSchema: {
-      conversation_summary: z.string().describe("これまでの会話の要約や、プロジェクト化したい内容の説明"),
+      summary: z.string().describe("これまでの会話の要約や、プロジェクト化したい内容の説明"),
     },
   },
-  async ({ conversation_summary }) => {
+  async ({ summary: conversation_summary }) => {
     const childTypeMap = getChildTypeMap();
     const allowedMap = getAllowedChildTypeMap();
 
@@ -951,7 +945,7 @@ ${Object.entries(allowedMap).filter(([, v]) => (v as string[]).length > 0).map((
 ### Step 3: 要求（need）ノードの抽出
 会話の中で議論された要求・ニーズを need ノードとして抽出してください。
 - 各needを1つずつテキストで提案し、ユーザーの承認を得てから作成
-- create_conversation → create_node（conversation_idを指定）の順で作成
+- create_changelog → create_node（changelog_idを指定）の順で作成
 - create_node の parent_id には **overview_id** を指定
 - 会話から明確に読み取れるものだけ抽出し、推測で追加しない
 
@@ -1108,7 +1102,7 @@ server.registerPrompt(
 3. 重複がある場合は具体的に指摘し、統合・分離・修正を提案する
 4. **新しい要求や意思決定が含まれる場合は、既存ノードの更新ではなくneed/featureノードの新規作成を提案する**
 5. 既存specの内容修正（誤り修正・詳細化）のみの場合はupdate_nodeを使う
-6. 承認を得たらcreate_conversationとcreate_nodeツールでノードを作成する
+6. 承認を得たらcreate_changelogとcreate_nodeツールでノードを作成する
 7. 必要に応じて機能・仕様へと段階的に深掘りを提案する
 
 ## 現在のプロジェクト状態
@@ -1122,9 +1116,9 @@ ${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructi
 - specの親はfeatureノード
 - ユーザーの承認なしにcreate_nodeを呼ばないでください
 
-## 会話の記録
-- create_conversationで会話を作成し、create_nodeのconversation_idに指定してください
-- これにより生成経緯がWeb UIに表示されます
+## 変更履歴の記録
+- create_changelogで変更履歴を作成し、create_nodeのchangelog_idに指定してください
+- これにより変更履歴がWeb UIに表示されます
 
 ${topic ? `## ユーザーの相談内容\n${topic}` : "## 開始\nユーザーの要望を聞いてください。"}`,
           },

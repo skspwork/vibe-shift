@@ -9,7 +9,7 @@ import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ProjectSettings } from "@/components/setup/ProjectSettings";
 import { useAppStore } from "@/lib/store";
 import { Settings, Download } from "lucide-react";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 export default function ProjectPage() {
   const params = useParams();
@@ -31,6 +31,11 @@ export default function ProjectPage() {
   const selectedNodeId = useAppStore((s) => s.selectedNodeId);
   const [showSettings, setShowSettings] = useState(false);
   const [panelWidth, setPanelWidth] = useState(320);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("cddai:panelWidth");
+    if (saved) setPanelWidth(Number(saved) || 320);
+  }, []);
   const isResizing = useRef(false);
 
   const startResize = useCallback((e: React.MouseEvent) => {
@@ -41,6 +46,7 @@ export default function ProjectPage() {
     const onMouseMove = (e: MouseEvent) => {
       const newWidth = Math.max(200, Math.min(window.innerWidth * 0.5, window.innerWidth - e.clientX));
       setPanelWidth(newWidth);
+      localStorage.setItem("cddai:panelWidth", String(newWidth));
     };
     const onMouseUp = () => {
       isResizing.current = false;

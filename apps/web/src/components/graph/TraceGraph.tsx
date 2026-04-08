@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -9,6 +9,7 @@ import {
   useReactFlow,
   type Node as RFNode,
   type Edge as RFEdge,
+  type Viewport,
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -326,6 +327,18 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     setFocusNodeId(null);
   }, [setFocusNodeId]);
 
+  const onMoveEnd = useCallback((_: any, viewport: Viewport) => {
+    localStorage.setItem("cddai:viewport", JSON.stringify(viewport));
+  }, []);
+
+  const [savedViewport] = useState<Viewport | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    try {
+      const v = localStorage.getItem("cddai:viewport");
+      return v ? JSON.parse(v) : undefined;
+    } catch { return undefined; }
+  });
+
   return (
     <div className="w-full h-full">
       <ReactFlow
@@ -334,7 +347,9 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
         nodeTypes={nodeTypes}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
-        fitView
+        onMoveEnd={onMoveEnd}
+        defaultViewport={savedViewport}
+        fitView={!savedViewport}
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}
       >

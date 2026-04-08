@@ -10,3 +10,5 @@ dist/
 .env
 .env.local
 next-env.d.ts
+.mcp.json
+.claude/settings.local.json

@@ -80,13 +80,7 @@ server.registerTool(
         .enum(["need", "feature", "spec"])
         .describe("ノード種別"),
       title: z.string().describe("タイトル（10文字程度）"),
-      content: z.string().describe(
-        "詳細内容（マークダウン形式で記述）。" +
-        "箇条書き(- item)、太字(**text**)、コードブロック(```lang)、テーブルを積極的に使うこと。" +
-        "【need】要求の背景・目的・期待効果を箇条書きで。" +
-        "【feature】機能の概要・主要ユースケース・振る舞いを構造化して。" +
-        "【spec】APIはエンドポイント・パラメータ・レスポンスをコードブロックとテーブルで、UIはコンポーネント構成・操作フローをリストで記述。"
-      ),
+      content: z.string().describe("詳細内容（マークダウン形式で記述。書き方はプロジェクト設定の指示に従うこと）"),
       parent_id: z.string().uuid().describe("親ノードID（グラフ上の親）"),
       changelog_id: z
         .string()
@@ -132,7 +126,7 @@ server.registerTool(
     inputSchema: {
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
-      content: z.string().optional().describe("新しい内容（マークダウン形式。箇条書き・コードブロック・テーブル等を活用すること）"),
+      content: z.string().optional().describe("新しい内容（マークダウン形式）"),
       reason: z.string().describe("変更理由（なぜこの更新が必要か）"),
     },
   },

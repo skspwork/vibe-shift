@@ -1,5 +1,11 @@
 import { create } from "zustand";
 
+function loadNumber(key: string, fallback: number): number {
+  if (typeof window === "undefined") return fallback;
+  const v = localStorage.getItem(key);
+  return v ? Number(v) || fallback : fallback;
+}
+
 interface AppState {
   // Selected node
   selectedNodeId: string | null;
@@ -32,8 +38,12 @@ export const useAppStore = create<AppState>((set) => ({
   panToNodeId: null,
   setPanToNodeId: (id) => set({ panToNodeId: id }),
 
-  graphColumns: 2,
-  setGraphColumns: (n) => set({ graphColumns: Math.max(1, Math.min(10, n)) }),
+  graphColumns: loadNumber("cddai:graphColumns", 2),
+  setGraphColumns: (n) => {
+    const v = Math.max(1, Math.min(10, n));
+    localStorage.setItem("cddai:graphColumns", String(v));
+    set({ graphColumns: v });
+  },
 
   showDisabledNodes: false,
   setShowDisabledNodes: (v) => set({ showDisabledNodes: v }),

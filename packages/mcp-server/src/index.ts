@@ -58,6 +58,29 @@ CddAIは、会話駆動型の開発トレーサビリティ管理システムで
    - need作成後は「機能に落とし込みますか？」と提案
    - feature → spec と段階的に進める
 
+## ノード作成 vs 更新の判断ルール（重要）
+
+ユーザーの要望を受けたとき、以下のフローで判断してください:
+
+### 新規ノード作成が必要なケース（create_node）
+- **新しい要求・動機が発生した場合** → needノードを新規作成
+  例: 「データを消したくない」→ need「データ保全」を作成
+- **新しい機能が必要な場合** → featureノードを新規作成
+  例: 「論理削除にしたい」→ feature「論理削除機能」を作成
+- **既存機能に新しい仕様が追加される場合** → specノードを新規作成
+  例: 「非活性ノードの検索機能が欲しい」→ spec「非活性ノード検索仕様」を作成
+
+### 既存ノード更新で済むケース（update_node）
+- 既存ノードの**内容の誤り修正**（typo、古い記述の修正）
+- 既存ノードの**内容の詳細化**（同じスコープ内での補足追記）
+- 実装結果を反映した**仕様の微調整**
+
+### 判断の原則
+1. **迷ったら新規作成**: 新しい意思決定や要求が含まれるなら、必ず上位ノード（need/feature）から新規作成する
+2. **更新は同一スコープ内に限る**: 既存ノードの目的・スコープが変わるような変更は、更新ではなく新規作成
+3. **意思決定の経緯を残す**: 「なぜ変わったか」をトレースできるよう、新しい要求には必ずneedノードを作る
+4. **上から下へ作成**: need → feature → spec の順に段階的に作成し、specだけ先に作らない
+
 ## ノード種別と階層
 - overview: プロジェクト概要（プロジェクト作成時に自動生成、1つのみ）
 - need: 要求（ステークホルダーのニーズ）
@@ -389,27 +412,103 @@ server.registerTool(
   })
 );
 
-// ─── Tool 4: delete_node ───
+// ─── Tool 4: delete_node (disable) ───
 server.registerTool(
   "delete_node",
   {
     description:
-      "ノードを削除する（子孫ノード・関連エッジ・会話ログも含めてカスケード削除）。overviewノードは削除不可。【注意】削除は不可逆操作。必ずユーザーの明確な承認を得てから実行すること。",
+      "ノードを非活性化（disable）する。対象ノードとその子孫ノードがすべて非活性化され、グラフ表示から非表示になる。データは保持される。overviewノードは非活性化不可。reason（理由）は必須で、会話ログとして自動記録される。",
     annotations: {
-      title: "ノード削除（カスケード）",
-      destructiveHint: true,
+      title: "ノード非活性化",
+      destructiveHint: false,
       readOnlyHint: false,
-      idempotentHint: false,
+      idempotentHint: true,
       openWorldHint: false,
     },
     inputSchema: {
-      node_id: z.string().uuid().describe("削除対象のノードID"),
+      node_id: z.string().uuid().describe("非活性化対象のノードID"),
+      reason: z.string().describe("非活性化の理由（なぜこのノードを非活性化するか）"),
     },
   },
-  safeHandler(async ({ node_id }) => {
+  safeHandler(async ({ node_id, reason }) => {
+    const node = await apiClient.getNode(node_id);
+    const conv = await apiClient.createConversation({
+      project_id: node.project_id,
+      title: `非活性化: ${node.title}`,
+    });
+    await apiClient.addConvMessage(conv.id, "assistant", reason);
+    // Link conversation to the node
+    await apiClient.updateNode(node_id, { conversation_id: conv.id, conversation_purpose: "非活性化" });
+
     const result = await apiClient.deleteNode(node_id);
     return {
       content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  })
+);
+
+// ─── Tool 4b: enable_node ───
+server.registerTool(
+  "enable_node",
+  {
+    description:
+      "非活性化されたノードを再活性化する。対象ノードとその子孫ノードがすべて活性化され、グラフ表示に復帰する。reason（理由）は必須で、会話ログとして自動記録される。",
+    annotations: {
+      title: "ノード活性化",
+      destructiveHint: false,
+      readOnlyHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    inputSchema: {
+      node_id: z.string().uuid().describe("活性化対象のノードID"),
+      reason: z.string().describe("活性化の理由（なぜこのノードを再活性化するか）"),
+    },
+  },
+  safeHandler(async ({ node_id, reason }) => {
+    // Enable first (node is disabled, so getNode would 404)
+    const result = await apiClient.enableNode(node_id);
+
+    // Now node is active, so we can get its info and record the conversation
+    const node = await apiClient.getNode(node_id);
+    const conv = await apiClient.createConversation({
+      project_id: node.project_id,
+      title: `活性化: ${node.title}`,
+    });
+    await apiClient.addConvMessage(conv.id, "assistant", reason);
+    await apiClient.updateNode(node_id, { conversation_id: conv.id, conversation_purpose: "活性化" });
+
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  })
+);
+
+// ─── Tool 4c: search_disabled_nodes ───
+server.registerTool(
+  "search_disabled_nodes",
+  {
+    description:
+      "非活性化されたノードを検索する。ユーザーからノードの再活性化を依頼された際に使用。キーワードで絞り込み可能。通常のsearch_nodesでは非活性ノードは見えない。",
+    annotations: {
+      title: "非活性ノード検索",
+      readOnlyHint: true,
+    },
+    inputSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+      query: z.string().optional().describe("検索キーワード（タイトル・内容の部分一致。省略時は全非活性ノードを返す）"),
+    },
+  },
+  safeHandler(async ({ project_id, query }) => {
+    const results = await apiClient.searchDisabledNodes(project_id, query);
+    if (results.length === 0) {
+      return { content: [{ type: "text" as const, text: "非活性ノードは見つかりませんでした。" }] };
+    }
+    const summary = results.map((n: any) =>
+      `- [${n.type}] ${n.title} (id: ${n.id}, 非活性化日時: ${n.disabled_at})`
+    ).join("\n");
+    return {
+      content: [{ type: "text" as const, text: `## 非活性ノード一覧（${results.length}件）\n\n${summary}` }],
     };
   })
 );
@@ -1013,8 +1112,10 @@ server.registerPrompt(
 1. ユーザーの要望を正確に理解する
 2. 既存ノードとの重複・矛盾・関連性を分析する
 3. 重複がある場合は具体的に指摘し、統合・分離・修正を提案する
-4. 承認を得たらcreate_conversationとcreate_nodeツールでノードを作成する
-5. 必要に応じて機能・仕様へと段階的に深掘りを提案する
+4. **新しい要求や意思決定が含まれる場合は、既存ノードの更新ではなくneed/featureノードの新規作成を提案する**
+5. 既存specの内容修正（誤り修正・詳細化）のみの場合はupdate_nodeを使う
+6. 承認を得たらcreate_conversationとcreate_nodeツールでノードを作成する
+7. 必要に応じて機能・仕様へと段階的に深掘りを提案する
 
 ## 現在のプロジェクト状態
 ${context}

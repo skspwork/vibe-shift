@@ -24,7 +24,7 @@ export function SearchPanel({ projectId }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { setSelectedNodeId, setFocusNodeId, setPanToNodeId, selectedNodeId, focusNodeId } = useAppStore();
+  const { setSelectedNodeId, setFocusNodeId, setPanToNodeId, selectedNodeId, focusNodeId, showDisabledNodes } = useAppStore();
   const isSearchSelect = useRef(false);
 
   // Close dropdown when graph is clicked (focusNodeId changes from outside)
@@ -43,8 +43,8 @@ export function SearchPanel({ projectId }: Props) {
   }, [query]);
 
   const { data: results } = useQuery({
-    queryKey: ["search", projectId, debouncedQuery],
-    queryFn: () => api.searchNodes(projectId, debouncedQuery),
+    queryKey: ["search", projectId, debouncedQuery, showDisabledNodes],
+    queryFn: () => api.searchNodes(projectId, debouncedQuery, undefined, showDisabledNodes),
     enabled: debouncedQuery.length > 0,
   });
 

@@ -106,6 +106,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     const result: RFNode[] = [];
     const addNode = (node: any, x: number, y: number) => {
       const isFocused = focusSet ? focusSet.has(node.id) : true;
+      const isDisabled = !!node.disabled_at;
       result.push({
         id: node.id,
         type: "custom",
@@ -115,7 +116,8 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
           nodeType: node.type,
           colors: NODE_COLORS[node.type] || NODE_COLORS.need,
           selected: node.id === selectedNodeId,
-          dimmed: !isFocused,
+          dimmed: !isFocused || isDisabled,
+          disabled: isDisabled,
         },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,

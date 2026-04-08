@@ -16,6 +16,10 @@ interface AppState {
   // Graph columns
   graphColumns: number;
   setGraphColumns: (n: number) => void;
+
+  // Show disabled nodes
+  showDisabledNodes: boolean;
+  setShowDisabledNodes: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -30,4 +34,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   graphColumns: 2,
   setGraphColumns: (n) => set({ graphColumns: Math.max(1, Math.min(10, n)) }),
+
+  showDisabledNodes: false,
+  setShowDisabledNodes: (v) => set({ showDisabledNodes: v }),
 }));

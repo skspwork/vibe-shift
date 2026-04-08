@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import { db, schema } from "../db/index.js";
+import { db, rawDb, schema } from "../db/index.js";
 import { NODE_LABELS } from "@cddai/shared";
 
 export async function getNodeContext(nodeId: string): Promise<string> {
-  const allNodes = await db.select().from(schema.nodes);
+  const allNodes = rawDb.prepare("SELECT * FROM nodes WHERE disabled_at IS NULL").all() as any[];
   const allEdges = await db.select().from(schema.edges);
 
   const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
@@ -66,10 +66,7 @@ export async function getNodeContext(nodeId: string): Promise<string> {
 }
 
 export async function getProjectContext(projectId: string): Promise<string> {
-  const allNodes = await db
-    .select()
-    .from(schema.nodes)
-    .where(eq(schema.nodes.project_id, projectId));
+  const allNodes = rawDb.prepare("SELECT * FROM nodes WHERE project_id = ? AND disabled_at IS NULL").all(projectId) as any[];
   const allEdges = await db.select().from(schema.edges);
 
   // Filter edges to only those within this project's nodes
@@ -133,7 +130,7 @@ export async function getProjectContext(projectId: string): Promise<string> {
 }
 
 export async function getNodeTrace(nodeId: string, direction: "upstream" | "downstream" | "both" = "both") {
-  const allNodes = await db.select().from(schema.nodes);
+  const allNodes = rawDb.prepare("SELECT * FROM nodes WHERE disabled_at IS NULL").all() as any[];
   const allEdges = await db.select().from(schema.edges);
 
   const nodeMap = new Map(allNodes.map((n) => [n.id, n]));

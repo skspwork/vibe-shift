@@ -24,8 +24,8 @@ export const api = {
     request<any>(`/projects/${id}`, { method: "DELETE" }),
 
   // Graph
-  getGraph: (projectId: string) =>
-    request<any>(`/projects/${projectId}/graph`),
+  getGraph: (projectId: string, includeDisabled = false) =>
+    request<any>(`/projects/${projectId}/graph${includeDisabled ? "?include_disabled=true" : ""}`),
 
   // Nodes
   createNode: (data: any) =>
@@ -41,9 +41,10 @@ export const api = {
   getNodeContext: (id: string) => request<any>(`/nodes/${id}/context`),
 
   // Search
-  searchNodes: (projectId: string, query: string, types?: string[]) => {
+  searchNodes: (projectId: string, query: string, types?: string[], includeDisabled = false) => {
     const params = new URLSearchParams({ project_id: projectId, query });
     if (types?.length) params.set("types", types.join(","));
+    if (includeDisabled) params.set("include_disabled", "true");
     params.set("include_path", "true");
     return request<any[]>(`/nodes/search?${params}`);
   },

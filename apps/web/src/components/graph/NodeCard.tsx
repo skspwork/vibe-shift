@@ -9,15 +9,18 @@ interface NodeCardData {
   colors: { bg: string; border: string; text: string };
   selected: boolean;
   dimmed: boolean;
+  disabled?: boolean;
 }
 
 export function NodeCard({ data }: { data: NodeCardData }) {
+  const isDisabled = data.disabled ?? false;
+
   return (
     <div
       className="rounded-lg px-3 py-2 min-w-[160px] max-w-[180px] transition-opacity"
       style={{
         backgroundColor: data.colors.bg,
-        border: `2px solid ${data.selected ? "#3b82f6" : data.colors.border}`,
+        border: `2px ${isDisabled ? "dashed" : "solid"} ${data.selected ? "#3b82f6" : data.colors.border}`,
         color: data.colors.text,
         opacity: data.dimmed ? 0.4 : 1,
         boxShadow: data.selected ? "0 0 0 2px #3b82f6" : "none",

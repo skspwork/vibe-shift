@@ -31,6 +31,7 @@ export const nodes = sqliteTable("nodes", {
   created_by: text("created_by").notNull().default("user"),
   created_at: text("created_at").notNull(),
   updated_at: text("updated_at").notNull(),
+  disabled_at: text("disabled_at"),
 });
 
 export const edges = sqliteTable("edges", {

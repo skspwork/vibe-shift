@@ -46,7 +46,8 @@ function initDb() {
       conversation_id TEXT REFERENCES conversations(id),
       created_by TEXT NOT NULL DEFAULT 'user',
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      disabled_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS edges (
@@ -80,6 +81,13 @@ function initDb() {
       tokenize='unicode61'
     );
   `);
+
+  // Add disabled_at column if not exists (for existing DBs)
+  try {
+    sqlite.exec("ALTER TABLE nodes ADD COLUMN disabled_at TEXT");
+  } catch {
+    // Column already exists
+  }
 
   // Migrate existing nodes.conversation_id → node_conversations
   const existing = sqlite.prepare(

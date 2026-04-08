@@ -18,8 +18,11 @@ function ftsUpdate(nodeId: string, title: string, content: string) {
   rawDb.prepare("INSERT INTO nodes_fts(node_id, title, content) VALUES(?, ?, ?)").run(nodeId, title, content);
 }
 
-function ftsDelete(nodeId: string) {
-  rawDb.prepare("DELETE FROM nodes_fts WHERE node_id = ?").run(nodeId);
+
+// ─── Active node guard ───
+
+function getActiveNode(id: string): any | undefined {
+  return rawDb.prepare("SELECT * FROM nodes WHERE id = ? AND disabled_at IS NULL").get(id);
 }
 
 // ─── Hierarchy path helper ───
@@ -152,14 +155,38 @@ app.post("/", async (c) => {
   return c.json(node, 201);
 });
 
+app.get("/disabled", async (c) => {
+  const projectId = c.req.query("project_id");
+  const query = c.req.query("query") || "";
+  if (!projectId) return c.json({ error: "project_id required" }, 400);
+
+  let results: any[];
+  if (query) {
+    const likePattern = `%${query}%`;
+    results = rawDb.prepare(
+      "SELECT * FROM nodes WHERE project_id = ? AND disabled_at IS NOT NULL AND (title LIKE ? OR content LIKE ?)"
+    ).all(projectId, likePattern, likePattern) as any[];
+  } else {
+    results = rawDb.prepare(
+      "SELECT * FROM nodes WHERE project_id = ? AND disabled_at IS NOT NULL"
+    ).all(projectId) as any[];
+  }
+
+  return c.json(results);
+});
+
 app.get("/search", async (c) => {
   const projectId = c.req.query("project_id");
   const query = c.req.query("query") || "";
   const types = c.req.query("types")?.split(",").filter(Boolean);
   const parentId = c.req.query("parent_id");
   const includePath = c.req.query("include_path") !== "false";
+  const includeDisabled = c.req.query("include_disabled") === "true";
 
   if (!projectId) return c.json({ error: "project_id required" }, 400);
+
+  const disabledFilter = includeDisabled ? "" : " AND n.disabled_at IS NULL";
+  const disabledFilterSimple = includeDisabled ? "" : " AND disabled_at IS NULL";
 
   let results: any[];
 
@@ -170,7 +197,7 @@ app.get("/search", async (c) => {
       SELECT n.*, bm25(nodes_fts) as rank
       FROM nodes_fts fts
       JOIN nodes n ON n.id = fts.node_id
-      WHERE nodes_fts MATCH ? AND n.project_id = ?
+      WHERE nodes_fts MATCH ? AND n.project_id = ?${disabledFilter}
       ORDER BY rank
     `).all(ftsQuery, projectId) as any[];
 
@@ -178,13 +205,13 @@ app.get("/search", async (c) => {
     const ftsIds = new Set(results.map((r) => r.id));
     const likePattern = `%${query}%`;
     const titleMatches = rawDb.prepare(
-      "SELECT * FROM nodes WHERE project_id = ? AND title LIKE ?"
+      `SELECT * FROM nodes WHERE project_id = ? AND title LIKE ?${disabledFilterSimple}`
     ).all(projectId, likePattern) as any[];
     for (const m of titleMatches) {
       if (!ftsIds.has(m.id)) results.push(m);
     }
   } else {
-    results = rawDb.prepare("SELECT * FROM nodes WHERE project_id = ?").all(projectId) as any[];
+    results = rawDb.prepare(`SELECT * FROM nodes WHERE project_id = ?${disabledFilterSimple}`).all(projectId) as any[];
   }
 
   // Type filter
@@ -216,16 +243,14 @@ app.get("/search", async (c) => {
 
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const [node] = await db
-    .select()
-    .from(schema.nodes)
-    .where(eq(schema.nodes.id, id));
+  const node = getActiveNode(id);
   if (!node) return c.json({ error: "Not found" }, 404);
   return c.json(node);
 });
 
 app.patch("/:id", async (c) => {
   const id = c.req.param("id");
+  if (!getActiveNode(id)) return c.json({ error: "Not found" }, 404);
   const body = await c.req.json();
   const parsed = UpdateNodeSchema.parse(body);
   const now = new Date().toISOString();
@@ -265,51 +290,78 @@ app.patch("/:id", async (c) => {
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
-  // Prevent overview deletion
-  const [target] = await db
-    .select()
-    .from(schema.nodes)
-    .where(eq(schema.nodes.id, id));
-  if (!target) return c.json({ error: "Not found" }, 404);
+  // Prevent overview deletion; already disabled nodes return 400
+  const target = getActiveNode(id);
+  if (!target) return c.json({ error: "Not found or already disabled" }, 400);
   if (target.type === "overview")
-    return c.json({ error: "Cannot delete overview node" }, 400);
+    return c.json({ error: "Cannot disable overview node" }, 400);
 
-  // Collect all descendant node IDs (BFS via edges)
+  // Collect all descendant node IDs (BFS via derives edges)
   const allEdges = await db.select().from(schema.edges);
   const childMap = new Map<string, string[]>();
   for (const e of allEdges) {
+    if (e.link_type !== "derives") continue;
     const children = childMap.get(e.from_node_id) || [];
     children.push(e.to_node_id);
     childMap.set(e.from_node_id, children);
   }
 
-  const toDelete = new Set<string>();
+  const toDisable = new Set<string>();
   const queue = [id];
   while (queue.length > 0) {
     const current = queue.shift()!;
-    if (toDelete.has(current)) continue;
-    toDelete.add(current);
+    if (toDisable.has(current)) continue;
+    toDisable.add(current);
     for (const child of childMap.get(current) || []) {
       queue.push(child);
     }
   }
 
-  // Delete all in order: node_conversations -> edges -> nodes -> FTS
-  for (const nodeId of toDelete) {
-    await db.delete(schema.node_conversations).where(eq(schema.node_conversations.node_id, nodeId));
-    await db.delete(schema.edges).where(eq(schema.edges.from_node_id, nodeId));
-    await db.delete(schema.edges).where(eq(schema.edges.to_node_id, nodeId));
-  }
-  for (const nodeId of toDelete) {
-    await db.delete(schema.nodes).where(eq(schema.nodes.id, nodeId));
-    ftsDelete(nodeId);
+  // Soft-delete: set disabled_at on all target nodes
+  const now = new Date().toISOString();
+  for (const nodeId of toDisable) {
+    await db.update(schema.nodes).set({ disabled_at: now }).where(eq(schema.nodes.id, nodeId));
   }
 
-  return c.json({ ok: true, deleted_count: toDelete.size });
+  return c.json({ ok: true, disabled_count: toDisable.size });
+});
+
+app.patch("/:id/enable", async (c) => {
+  const id = c.req.param("id");
+  const [target] = await db.select().from(schema.nodes).where(eq(schema.nodes.id, id));
+  if (!target) return c.json({ error: "Not found" }, 404);
+
+  // BFS to collect all descendant node IDs
+  const allEdges = await db.select().from(schema.edges);
+  const childMap = new Map<string, string[]>();
+  for (const e of allEdges) {
+    if (e.link_type !== "derives") continue;
+    const children = childMap.get(e.from_node_id) || [];
+    children.push(e.to_node_id);
+    childMap.set(e.from_node_id, children);
+  }
+
+  const toEnable = new Set<string>();
+  const queue = [id];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (toEnable.has(current)) continue;
+    toEnable.add(current);
+    for (const child of childMap.get(current) || []) {
+      queue.push(child);
+    }
+  }
+
+  for (const nodeId of toEnable) {
+    await db.update(schema.nodes).set({ disabled_at: null }).where(eq(schema.nodes.id, nodeId));
+  }
+
+  return c.json({ ok: true, enabled_count: toEnable.size });
 });
 
 app.get("/:id/conv", async (c) => {
   const nodeId = c.req.param("id");
+  if (!getActiveNode(nodeId)) return c.json({ error: "Not found" }, 404);
 
   // Get all linked conversations via junction table
   const links = rawDb.prepare(`
@@ -379,7 +431,7 @@ app.post("/impact", async (c) => {
     for (const file of changed_files) {
       const pattern = `%${file}%`;
       const urlMatches = rawDb.prepare(
-        "SELECT * FROM nodes WHERE project_id = ? AND (url LIKE ? OR content LIKE ?)"
+        "SELECT * FROM nodes WHERE project_id = ? AND disabled_at IS NULL AND (url LIKE ? OR content LIKE ?)"
       ).all(project_id, pattern, pattern) as any[];
       for (const n of urlMatches) {
         if (!matchedMap.has(n.id)) matchedMap.set(n.id, { node: n, match_reason: "url_match" });
@@ -399,7 +451,7 @@ app.post("/impact", async (c) => {
         SELECT n.*, bm25(nodes_fts) as rank
         FROM nodes_fts fts
         JOIN nodes n ON n.id = fts.node_id
-        WHERE nodes_fts MATCH ? AND n.project_id = ?
+        WHERE nodes_fts MATCH ? AND n.project_id = ? AND n.disabled_at IS NULL
         ORDER BY rank
       `).all(ftsQuery, project_id) as any[];
       for (const n of ftsResults) {
@@ -413,7 +465,7 @@ app.post("/impact", async (c) => {
     for (const term of keywords || []) {
       const pattern = `%${term}%`;
       const likeMatches = rawDb.prepare(
-        "SELECT * FROM nodes WHERE project_id = ? AND (title LIKE ? OR content LIKE ?)"
+        "SELECT * FROM nodes WHERE project_id = ? AND disabled_at IS NULL AND (title LIKE ? OR content LIKE ?)"
       ).all(project_id, pattern, pattern) as any[];
       for (const n of likeMatches) {
         if (!matchedMap.has(n.id)) matchedMap.set(n.id, { node: n, match_reason: "fts_match" });
@@ -476,6 +528,7 @@ app.post("/impact", async (c) => {
 
 app.get("/:id/trace", async (c) => {
   const nodeId = c.req.param("id");
+  if (!getActiveNode(nodeId)) return c.json({ error: "Not found" }, 404);
   const direction = (c.req.query("direction") as "upstream" | "downstream" | "both") || "both";
   const result = await getNodeTrace(nodeId, direction);
   return c.json(result);
@@ -483,6 +536,7 @@ app.get("/:id/trace", async (c) => {
 
 app.get("/:id/context", async (c) => {
   const nodeId = c.req.param("id");
+  if (!getActiveNode(nodeId)) return c.json({ error: "Not found" }, 404);
   const context = await getNodeContext(nodeId);
   return c.json({ context });
 });

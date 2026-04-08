@@ -6,7 +6,8 @@ const app = new Hono();
 
 app.get("/:id/graph", async (c) => {
   const projectId = c.req.param("id");
-  const graph = await getProjectGraph(projectId);
+  const includeDisabled = c.req.query("include_disabled") === "true";
+  const graph = await getProjectGraph(projectId, includeDisabled);
   return c.json(graph);
 });
 

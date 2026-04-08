@@ -20,9 +20,11 @@ export default function ProjectPage() {
     queryFn: () => api.getProject(projectId),
   });
 
+  const showDisabledNodes = useAppStore((s) => s.showDisabledNodes);
+
   const { data: graph, refetch: refetchGraph } = useQuery({
-    queryKey: ["graph", projectId],
-    queryFn: () => api.getGraph(projectId),
+    queryKey: ["graph", projectId, showDisabledNodes],
+    queryFn: () => api.getGraph(projectId, showDisabledNodes),
     refetchInterval: 3000,
   });
 

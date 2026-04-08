@@ -31,6 +31,13 @@ export const apiClient = {
     request<any>(`/nodes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteNode: (id: string) =>
     request<any>(`/nodes/${id}`, { method: "DELETE" }),
+  enableNode: (id: string) =>
+    request<any>(`/nodes/${id}/enable`, { method: "PATCH" }),
+  searchDisabledNodes: (projectId: string, query?: string) => {
+    const params = new URLSearchParams({ project_id: projectId });
+    if (query) params.set("query", query);
+    return request<any[]>(`/nodes/disabled?${params}`);
+  },
   searchNodes: (projectId: string, query: string, types?: string[], parentId?: string, includePath?: boolean) => {
     const params = new URLSearchParams({ project_id: projectId, query });
     if (types?.length) params.set("types", types.join(","));

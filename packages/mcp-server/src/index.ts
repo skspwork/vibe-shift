@@ -297,7 +297,7 @@ server.registerTool(
   "delete_edge",
   {
     description:
-      "ノード間のエッジ（リンク）を削除する。誤ったparent_id指定で作られた不正なリンクの修正に使用。エッジIDはget_project_graphやlist_edgesで確認できる。【注意】削除は不可逆。ユーザーの承認を得てから実行すること。",
+      "ノード間のエッジ（リンク）を削除する。誤ったparent_id指定で作られた不正なリンクの修正に使用。エッジIDはlist_edgesで確認できる。【注意】削除は不可逆。ユーザーの承認を得てから実行すること。",
     annotations: {
       title: "エッジ削除",
       destructiveHint: true,
@@ -372,42 +372,7 @@ server.registerTool(
   })
 );
 
-// ─── Tool 7: get_node_context ───
-server.registerTool(
-  "get_node_context",
-  {
-    description:
-      "指定ノードの全親ノードをコンテキスト形式のテキストで取得する。AIセッションのプロンプト構築に使用",
-    inputSchema: {
-      node_id: z.string().uuid().describe("対象ノードID"),
-    },
-  },
-  safeHandler(async ({ node_id }) => {
-    const result = await apiClient.getNodeContext(node_id);
-    return {
-      content: [{ type: "text" as const, text: result.context }],
-    };
-  })
-);
-
-// ─── Tool 8: get_project_graph ───
-server.registerTool(
-  "get_project_graph",
-  {
-    description: "プロジェクトのグラフ全体（ノードとエッジ）を取得する",
-    inputSchema: {
-      project_id: z.string().uuid().describe("プロジェクトID"),
-    },
-  },
-  safeHandler(async ({ project_id }) => {
-    const graph = await apiClient.getProjectGraph(project_id);
-    return {
-      content: [{ type: "text" as const, text: JSON.stringify(graph, null, 2) }],
-    };
-  })
-);
-
-// ─── Tool 9: search_nodes ───
+// ─── Tool 7: search_nodes ───
 server.registerTool(
   "search_nodes",
   {

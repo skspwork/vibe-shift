@@ -35,6 +35,8 @@ export const api = {
     request<any>(`/nodes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteNode: (id: string) =>
     request<any>(`/nodes/${id}`, { method: "DELETE" }),
+  purgeNode: (id: string) =>
+    request<any>(`/nodes/${id}/purge`, { method: "DELETE" }),
   getNodeChangelogs: (id: string) => request<any>(`/nodes/${id}/changelogs`),
   getNodeTrace: (id: string, direction = "both") =>
     request<any>(`/nodes/${id}/trace?direction=${direction}`),

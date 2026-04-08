@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, rawDb, schema } from "../db/index.js";
 import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS, ALLOWED_CHILD_MAP } from "@cddai/shared";
 import { getNodeContext, getNodeTrace } from "../services/contextService.js";
@@ -362,6 +362,54 @@ app.patch("/:id/enable", async (c) => {
   }
 
   return c.json({ ok: true, enabled_count: toEnable.size });
+});
+
+app.delete("/:id/purge", async (c) => {
+  const id = c.req.param("id");
+  const target = getAnyNode(id);
+  if (!target) return c.json({ error: "Not found" }, 404);
+  if (!target.disabled_at) return c.json({ error: "Only disabled nodes can be purged" }, 400);
+
+  // BFS to collect all descendant node IDs
+  const allEdges = await db.select().from(schema.edges);
+  const childMap = new Map<string, string[]>();
+  for (const e of allEdges) {
+    if (e.link_type !== "derives") continue;
+    const children = childMap.get(e.from_node_id) || [];
+    children.push(e.to_node_id);
+    childMap.set(e.from_node_id, children);
+  }
+
+  const toPurge = new Set<string>();
+  const queue = [id];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (toPurge.has(current)) continue;
+    toPurge.add(current);
+    for (const child of childMap.get(current) || []) {
+      toPurge.add(child);
+      queue.push(child);
+    }
+  }
+
+  const nodeIds = Array.from(toPurge);
+
+  // Delete node_changelogs
+  await db.delete(schema.node_changelogs).where(inArray(schema.node_changelogs.node_id, nodeIds));
+
+  // Delete edges
+  await db.delete(schema.edges).where(inArray(schema.edges.from_node_id, nodeIds));
+  await db.delete(schema.edges).where(inArray(schema.edges.to_node_id, nodeIds));
+
+  // Delete FTS entries
+  for (const nid of nodeIds) {
+    rawDb.prepare("DELETE FROM nodes_fts WHERE node_id = ?").run(nid);
+  }
+
+  // Delete nodes
+  await db.delete(schema.nodes).where(inArray(schema.nodes.id, nodeIds));
+
+  return c.json({ ok: true, purged_count: nodeIds.length });
 });
 
 app.get("/:id/changelogs", async (c) => {

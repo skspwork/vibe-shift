@@ -22,7 +22,7 @@ export default function Home() {
     <div className="min-h-screen flex items-center justify-center p-8">
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">CddAI</h1>
+          <h1 className="text-3xl font-bold mb-2">VibeShift</h1>
           <p className="text-gray-500">
             AIドリブン開発トレーサビリティ管理システム
           </p>

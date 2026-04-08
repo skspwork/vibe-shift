@@ -1,6 +1,6 @@
-# CddAI MCP Server
+# VibeShift MCP Server
 
-CddAIのMCPサーバー。Claude Desktop等のAI Agentから直接ノード操作が可能。
+VibeShiftのMCPサーバー。Claude Desktop等のAI Agentから直接ノード操作が可能。
 
 ## セットアップ
 
@@ -18,11 +18,11 @@ pnpm build
 ```json
 {
   "mcpServers": {
-    "CddAI": {
+    "VibeShift": {
       "command": "node",
-      "args": ["C:/sksp/cdd-ai/packages/mcp-server/dist/index.js"],
+      "args": ["C:/sksp/vibe-shift/packages/mcp-server/dist/index.js"],
       "env": {
-        "CDDAI_API_URL": "http://localhost:3001"
+        "VIBESHIFT_API_URL": "http://localhost:3001"
       }
     }
   }
@@ -31,7 +31,7 @@ pnpm build
 
 ### 3. APIサーバーの起動
 
-MCPサーバーはバックエンドAPIに接続するため、事前にAPIサーバーを起動しておく必要があります。
+MCPサーバーはバックエンドAPIに接続するため、事前にAPIサーバーを起動しておく必要があります���
 
 ```bash
 cd apps/api

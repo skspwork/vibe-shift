@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { CreateEdgeSchema } from "@cddai/shared";
+import { CreateEdgeSchema } from "@vibeshift/shared";
 
 const app = new Hono();
 

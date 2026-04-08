@@ -328,13 +328,13 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
   }, [setFocusNodeId]);
 
   const onMoveEnd = useCallback((_: any, viewport: Viewport) => {
-    localStorage.setItem("cddai:viewport", JSON.stringify(viewport));
+    localStorage.setItem("vibeshift:viewport", JSON.stringify(viewport));
   }, []);
 
   const [savedViewport] = useState<Viewport | undefined>(() => {
     if (typeof window === "undefined") return undefined;
     try {
-      const v = localStorage.getItem("cddai:viewport");
+      const v = localStorage.getItem("vibeshift:viewport");
       return v ? JSON.parse(v) : undefined;
     } catch { return undefined; }
   });

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
 import { eq, and, inArray } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
-import { CreateProjectSchema, UpdateProjectSchema } from "@cddai/shared";
+import { CreateProjectSchema, UpdateProjectSchema } from "@vibeshift/shared";
 import { generateProjectHtml } from "../services/exportService.js";
 
 const app = new Hono();

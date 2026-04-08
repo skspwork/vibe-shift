@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
 import { eq, inArray } from "drizzle-orm";
 import { db, rawDb, schema } from "../db/index.js";
-import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS, ALLOWED_CHILD_MAP } from "@cddai/shared";
+import { CreateNodeSchema, UpdateNodeSchema, NODE_LABELS, ALLOWED_CHILD_MAP } from "@vibeshift/shared";
 import { getNodeContext, getNodeTrace } from "../services/contextService.js";
 
 const app = new Hono();

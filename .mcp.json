@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "cddai": {
+    "vibeshift": {
       "command": "node",
-      "args": ["C:/sksp/cdd-ai/packages/mcp-server/dist/index.js"]
+      "args": ["C:/sksp/vibe-shift/packages/mcp-server/dist/index.js"]
     },
     "dbhub": {
       "type": "http",

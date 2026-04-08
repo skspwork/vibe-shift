@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from "uuid";
 
 // Run migrations inline for dev
 function initDb() {
-  const dbPath = resolve(process.cwd(), "cddai.db");
+  const dbPath = resolve(process.cwd(), "vibeshift.db");
   const sqlite = new Database(dbPath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
@@ -116,6 +116,13 @@ function initDb() {
     // Column already exists
   }
 
+  // Add node_instructions column to projects if not exists
+  try {
+    sqlite.exec("ALTER TABLE projects ADD COLUMN node_instructions TEXT");
+  } catch {
+    // Column already exists
+  }
+
   // Migrate existing nodes.changelog_id → node_changelogs
   const existing = sqlite.prepare(
     "SELECT id, changelog_id, created_at FROM nodes WHERE changelog_id IS NOT NULL"
@@ -155,8 +162,8 @@ app.route("/edges", edges);
 app.route("/projects", graph);
 app.route("/changelogs", changelogs);
 
-app.get("/", (c) => c.json({ status: "ok", service: "CddAI API" }));
+app.get("/", (c) => c.json({ status: "ok", service: "VibeShift API" }));
 
 const port = Number(process.env.PORT) || 3001;
-console.log(`CddAI API running on http://localhost:${port}`);
+console.log(`VibeShift API running on http://localhost:${port}`);
 serve({ fetch: app.fetch, port });

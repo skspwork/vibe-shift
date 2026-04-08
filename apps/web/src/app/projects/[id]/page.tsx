@@ -33,7 +33,7 @@ export default function ProjectPage() {
   const [panelWidth, setPanelWidth] = useState(320);
 
   useEffect(() => {
-    const saved = localStorage.getItem("cddai:panelWidth");
+    const saved = localStorage.getItem("vibeshift:panelWidth");
     if (saved) setPanelWidth(Number(saved) || 320);
   }, []);
   const isResizing = useRef(false);
@@ -46,7 +46,7 @@ export default function ProjectPage() {
     const onMouseMove = (e: MouseEvent) => {
       const newWidth = Math.max(200, Math.min(window.innerWidth * 0.5, window.innerWidth - e.clientX));
       setPanelWidth(newWidth);
-      localStorage.setItem("cddai:panelWidth", String(newWidth));
+      localStorage.setItem("vibeshift:panelWidth", String(newWidth));
     };
     const onMouseUp = () => {
       isResizing.current = false;
@@ -63,7 +63,7 @@ export default function ProjectPage() {
     <div className="h-screen flex flex-col">
       <header className="h-12 border-b bg-white flex items-center px-4 shrink-0">
         <a href="/" className="font-bold text-lg mr-4">
-          CddAI
+          VibeShift
         </a>
         {project && (
           <>

@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@cddai/shared"],
+  transpilePackages: ["@vibeshift/shared"],
 };
 
 export default nextConfig;

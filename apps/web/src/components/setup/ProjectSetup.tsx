@@ -2,7 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateProjectSchema } from "@cddai/shared";
+import { CreateProjectSchema } from "@vibeshift/shared";
 
 import { api } from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";

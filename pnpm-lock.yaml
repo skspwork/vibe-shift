@@ -17,12 +17,12 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.39.0
         version: 0.39.0
-      '@cddai/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@hono/node-server':
         specifier: ^1.13.0
         version: 1.19.11(hono@4.12.9)
+      '@vibeshift/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       better-sqlite3:
         specifier: ^11.7.0
         version: 11.10.0
@@ -63,9 +63,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@cddai/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@hookform/resolvers':
         specifier: ^3.9.0
         version: 3.10.0(react-hook-form@7.72.0(react@19.2.4))
@@ -75,6 +72,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.95.0(react@19.2.4)
+      '@vibeshift/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@xyflow/react':
         specifier: ^12.4.0
         version: 12.10.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -133,15 +133,15 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@cddai/shared':
-        specifier: workspace:*
-        version: link:../shared
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.27.1(zod@3.25.76)
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.15
+      '@vibeshift/shared':
+        specifier: workspace:*
+        version: link:../shared
       zod:
         specifier: ^3.24.0
         version: 3.25.76

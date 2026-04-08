@@ -1,5 +1,5 @@
 {
-  "name": "cddai",
+  "name": "vibeshift",
   "private": true,
   "packageManager": "pnpm@9.5.0",
   "scripts": {
@@ -7,8 +7,8 @@
     "build": "turbo build",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "db:generate": "pnpm --filter @cddai/api db:generate",
-    "db:migrate": "pnpm --filter @cddai/api db:migrate"
+    "db:generate": "pnpm --filter @vibeshift/api db:generate",
+    "db:migrate": "pnpm --filter @vibeshift/api db:migrate"
   },
   "devDependencies": {
     "turbo": "^2.8.20"

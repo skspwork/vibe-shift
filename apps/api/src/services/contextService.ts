@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, rawDb, schema } from "../db/index.js";
-import { NODE_LABELS } from "@cddai/shared";
+import { NODE_LABELS } from "@vibeshift/shared";
 
 export async function getNodeContext(nodeId: string): Promise<string> {
   const allNodes = rawDb.prepare("SELECT * FROM nodes WHERE disabled_at IS NULL").all() as any[];

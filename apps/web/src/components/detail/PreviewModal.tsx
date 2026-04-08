@@ -2,8 +2,8 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { X, Copy, Check } from "lucide-react";
-import { NODE_LABELS } from "@cddai/shared";
-import type { AppNode } from "@cddai/shared";
+import { NODE_LABELS } from "@vibeshift/shared";
+import type { AppNode } from "@vibeshift/shared";
 import { Markdown } from "../ui/Markdown";
 
 interface Props {

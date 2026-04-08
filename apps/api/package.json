@@ -1,5 +1,5 @@
 {
-  "name": "@cddai/api",
+  "name": "@vibeshift/api",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@cddai/shared": "workspace:*",
+    "@vibeshift/shared": "workspace:*",
     "@hono/node-server": "^1.13.0",
     "better-sqlite3": "^11.7.0",
     "dotenv": "^17.3.1",

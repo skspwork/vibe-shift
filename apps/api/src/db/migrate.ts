@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { resolve } from "path";
 
-const dbPath = resolve(process.cwd(), "cddai.db");
+const dbPath = resolve(process.cwd(), "vibeshift.db");
 const sqlite = new Database(dbPath);
 const db = drizzle(sqlite);
 

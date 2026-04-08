@@ -1,5 +1,5 @@
 {
-  "name": "@cddai/web",
+  "name": "@vibeshift/web",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@cddai/shared": "workspace:*",
+    "@vibeshift/shared": "workspace:*",
     "@hookform/resolvers": "^3.9.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.62.0",

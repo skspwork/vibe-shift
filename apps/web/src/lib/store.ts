@@ -38,10 +38,10 @@ export const useAppStore = create<AppState>((set) => ({
   panToNodeId: null,
   setPanToNodeId: (id) => set({ panToNodeId: id }),
 
-  graphColumns: loadNumber("cddai:graphColumns", 2),
+  graphColumns: loadNumber("vibeshift:graphColumns", 2),
   setGraphColumns: (n) => {
     const v = Math.max(1, Math.min(10, n));
-    localStorage.setItem("cddai:graphColumns", String(v));
+    localStorage.setItem("vibeshift:graphColumns", String(v));
     set({ graphColumns: v });
   },
 

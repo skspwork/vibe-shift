@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import { resolve } from "path";
 
-const dbPath = resolve(process.cwd(), "cddai.db");
+const dbPath = resolve(process.cwd(), "vibeshift.db");
 const sqlite = new Database(dbPath);
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("foreign_keys = ON");

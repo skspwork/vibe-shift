@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { NODE_LABELS } from "@cddai/shared";
+import { NODE_LABELS } from "@vibeshift/shared";
 import { Search, X } from "lucide-react";
 
 const NODE_COLORS: Record<string, string> = {

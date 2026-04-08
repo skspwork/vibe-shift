@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { NODE_LABELS } from "@cddai/shared";
+import { NODE_LABELS } from "@vibeshift/shared";
 import { ExternalLink, Eye, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";

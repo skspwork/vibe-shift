@@ -4,10 +4,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiClient } from "./client.js";
-import { getChildTypeMap, getAllowedChildTypeMap, GUIDANCE_TEXT, DEFAULT_NODE_INSTRUCTIONS } from "@cddai/shared";
+import { getChildTypeMap, getAllowedChildTypeMap, GUIDANCE_TEXT, DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
 
 const server = new McpServer({
-  name: "CddAI",
+  name: "VibeShift",
   version: "0.0.1",
 });
 
@@ -25,176 +25,6 @@ function safeHandler<T>(fn: (args: T) => Promise<{ content: { type: "text"; text
     }
   };
 }
-
-
-// ─── Prompt 1: requirements_elicitation ───
-server.registerPrompt(
-  "requirements_elicitation",
-  {
-    description:
-      "要求定義のヒアリングワークフロー。AIがユーザーに質問し、合意を得てからノードを作成する対話的フロー",
-    argsSchema: {
-      project_id: z.string().uuid().describe("対象プロジェクトID"),
-    },
-  },
-  async ({ project_id }) => {
-    // Fetch project info and graph for context
-    const project = await apiClient.getProject(project_id);
-    const graph = await apiClient.getProjectGraph(project_id);
-    const existingNodes = graph.nodes
-      ?.map((n: any) => `- [${n.type}] ${n.title} (id: ${n.id})`)
-      .join("\n") || "（まだノードがありません）";
-
-    const overviewNode = graph.nodes?.find((n: any) => n.type === "overview");
-    const overviewId = overviewNode?.id || "（不明）";
-
-    const nodeInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...(project.node_instructions || {}) };
-    const instructionsBlock = Object.entries(nodeInstructions)
-      .filter(([, v]) => (v as string).trim())
-      .map(([type, instruction]) => `- ${type}: ${instruction}`)
-      .join("\n");
-
-    return {
-      messages: [
-        {
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: `あなたはCddAIの要求定義アシスタントです。以下のワークフローに従って対話してください。
-
-## プロジェクト情報
-- プロジェクト名: ${project.name}
-- 目的: ${project.purpose}
-- プロジェクトID: ${project_id}
-
-## 開発手法のガイダンス
-${GUIDANCE_TEXT}
-${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructionsBlock}\n` : ""}
-
-## overviewノードID
-${overviewId}
-
-## 既存ノード（IDはcreate_nodeのparent_idに使用）
-${existingNodes}
-
-## ワークフロー（必ずこの順序で進めてください）
-
-### Phase 1: ヒアリング
-- ユーザーに質問を投げて、要求（need）の背景・目的・スコープを聞き出してください
-- 「誰が」「何を」「なぜ」必要としているかを明確にしてください
-- 1つの質問に対して1つずつ回答を待ってください
-- この段階では絶対にcreate_nodeやcreate_changelogを呼ばないでください
-
-### Phase 2: 提案
-- ヒアリング内容をもとに、作成するノードの内容をマークダウン形式で提案してください
-- 例: 「以下の要求ノードを作成してよろしいですか？\n\nタイトル: ○○\n内容: ○○」
-- ノードのcontentは必ずマークダウン形式で記述してください（見出し、箇条書き、コードブロック等を活用）
-- ユーザーの修正要望があれば反映してください
-- ユーザーが「OK」「はい」「作成して」など明確に承認するまで次に進まないでください
-
-### Phase 3: 登録
-- ユーザーの承認を得たら、以下の手順でノードを作成してください:
-  1. create_changelogで変更履歴を作成（project_idを指定）
-  2. create_nodeでノードを作成（changelog_idを指定して経緯を紐付け）
-- 作成完了後、次のステップを提案してください
-
-## parent_idの指定ルール（重要）
-- **needノード作成時**: parent_idにはoverviewノードID（${overviewId}）を指定してください
-- **featureノード作成時**: parent_idには親となるneedノードのIDを指定してください
-- **spec作成時**: parent_idには親となるfeatureノードのIDを指定してください
-- **絶対にすべてのノードをoverviewに紐づけないでください。正しい親子関係を守ってください。**
-
-## 重要な注意事項
-- ユーザーの明確な承認なしにcreate_nodeを呼ばないでください
-- 一度に複数のノードを提案する場合も、1つずつ確認を取ってください
-- 不明な点があれば推測せず質問してください`,
-          },
-        },
-      ],
-    };
-  }
-);
-
-// ─── Prompt 2: node_session ───
-server.registerPrompt(
-  "node_session",
-  {
-    description:
-      "特定ノードの深掘りワークフロー。選択したノードの子ノードをヒアリングを通じて作成する",
-    argsSchema: {
-      project_id: z.string().uuid().describe("対象プロジェクトID"),
-      node_id: z.string().uuid().describe("深掘り対象のノードID"),
-    },
-  },
-  async ({ project_id, node_id }) => {
-    const node = await apiClient.getNode(node_id);
-    const context = await apiClient.getNodeContext(node_id);
-    const project = await apiClient.getProject(project_id);
-    const childTypeMap = getChildTypeMap();
-    const childTypes = childTypeMap[node.type] || [];
-    const childTypeLabels: Record<string, string> = {
-      need: "要求", feature: "機能", spec: "仕様",
-    };
-
-    const nodeInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...(project.node_instructions || {}) };
-    const instructionsBlock = Object.entries(nodeInstructions)
-      .filter(([, v]) => (v as string).trim())
-      .map(([type, instruction]) => `- ${type}: ${instruction}`)
-      .join("\n");
-
-    return {
-      messages: [
-        {
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: `あなたはCddAIのノード深掘りアシスタントです。以下のワークフローに従って対話してください。
-
-## 対象ノード
-- 種別: ${node.type}
-- タイトル: ${node.title}
-- 内容: ${node.content}
-- ノードID: ${node_id}
-- プロジェクトID: ${project_id}
-
-## 開発手法のガイダンス
-${GUIDANCE_TEXT}
-
-## 上流コンテキスト
-${context.context}
-
-## 推奨する子ノード種別
-${childTypes.map((t) => `- ${t}（${childTypeLabels[t] || t}）`).join("\n")}
-${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructionsBlock}\n` : ""}
-## ワークフロー（必ずこの順序で進めてください）
-
-### Phase 1: ヒアリング
-- 対象ノードの内容を踏まえ、子ノードとして何を定義すべきかユーザーに質問してください
-- 上流コンテキストを参考に、抜け漏れがないか確認してください
-- この段階ではcreate_nodeを呼ばないでください
-
-### Phase 2: 提案
-- ヒアリング結果を踏まえ、作成する子ノードをマークダウン形式で提案してください
-- ノードのcontentは必ずマークダウン形式で記述してください（見出し、箇条書き、コードブロック等を活用）
-- ユーザーの承認を待ってください
-
-### Phase 3: 登録
-- 承認後にcreate_changelog→create_nodeの順で作成してください
-- changelog_idを必ず指定して経緯を紐付けてください
-
-## parent_idの指定ルール（重要）
-- create_nodeのparent_idには、**この対象ノードのID（${node_id}）** を指定してください
-- **overviewノードのIDやプロジェクトIDを parent_id に使わないでください**
-
-## 重要な注意事項
-- ユーザーの明確な承認なしにcreate_nodeを呼ばないでください
-- 不明な点は推測せず質問してください`,
-          },
-        },
-      ],
-    };
-  }
-);
 
 // ─── Tool 1: create_changelog ───
 server.registerTool(
@@ -250,7 +80,13 @@ server.registerTool(
         .enum(["need", "feature", "spec"])
         .describe("ノード種別"),
       title: z.string().describe("タイトル（10文字程度）"),
-      content: z.string().describe("詳細内容（マークダウン形式で記述）"),
+      content: z.string().describe(
+        "詳細内容（マークダウン形式で記述）。" +
+        "箇条書き(- item)、太字(**text**)、コードブロック(```lang)、テーブルを積極的に使うこと。" +
+        "【need】要求の背景・目的・期待効果を箇条書きで。" +
+        "【feature】機能の概要・主要ユースケース・振る舞いを構造化して。" +
+        "【spec】APIはエンドポイント・パラメータ・レスポンスをコードブロックとテーブルで、UIはコンポーネント構成・操作フローをリストで記述。"
+      ),
       parent_id: z.string().uuid().describe("親ノードID（グラフ上の親）"),
       changelog_id: z
         .string()
@@ -296,7 +132,7 @@ server.registerTool(
     inputSchema: {
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
-      content: z.string().optional().describe("新しい内容"),
+      content: z.string().optional().describe("新しい内容（マークダウン形式。箇条書き・コードブロック・テーブル等を活用すること）"),
       reason: z.string().describe("変更理由（なぜこの更新が必要か）"),
     },
   },
@@ -612,7 +448,7 @@ server.registerTool(
 server.registerTool(
   "list_projects",
   {
-    description: "CddAIのプロジェクト一覧を取得する",
+    description: "VibeShiftのプロジェクト一覧を取得する",
     annotations: {
       title: "プロジェクト一覧",
       readOnlyHint: true,
@@ -713,66 +549,12 @@ server.registerTool(
   })
 );
 
-// ─── Prompt 3: implement_node ───
-server.registerPrompt(
-  "implement_node",
-  {
-    description:
-      "CddAIのノード（仕様等）をClaude Codeで実装するワークフロー",
-    argsSchema: {
-      project_id: z.string().uuid().describe("プロジェクトID"),
-      node_id: z.string().uuid().describe("実装対象のノードID（仕様など）"),
-    },
-  },
-  async ({ project_id, node_id }) => {
-    const node = await apiClient.getNode(node_id);
-
-    return {
-      messages: [
-        {
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: `あなたはCddAIと連携した実装アシスタントです。以下のワークフローに従って実装してください。
-
-## 対象ノード
-- タイトル: ${node.title}
-- ノードID: ${node_id}
-- プロジェクトID: ${project_id}
-
-## ワークフロー（この順序で進めてください）
-
-### Step 1: コンテキスト取得
-get_implementation_brief(node_id: "${node_id}") を呼び出して、全コンテキスト（要求・機能・仕様）を取得してください。
-
-### Step 2: 実装計画の提示
-コンテキストを読んだ上で、何をどう実装するか計画をユーザーに提示してください。
-ユーザーの承認を待ってから実装に進んでください。
-
-### Step 3: ブランチ作成と実装
-- git checkout -b feature/cddai-${node_id.slice(0, 8)} でブランチを作成
-- コンテキストに基づいてコードを実装
-- 適切な粒度でコミット
-
-### Step 4: 完了報告
-実装内容のサマリーをユーザーに報告してください。
-
-## 重要な注意事項
-- Step 2でユーザーの承認を得てから実装に進むこと
-- 実装はget_implementation_briefで取得したコンテキストに忠実に行うこと`,
-          },
-        },
-      ],
-    };
-  }
-);
-
 // ─── Tool 14: create_project ───
 server.registerTool(
   "create_project",
   {
     description:
-      "CddAIに新しいプロジェクトを作成する。overviewノードも自動生成される。返却されるproject_idとoverview_idを後続のノード作成に使用すること。",
+      "VibeShiftに新しいプロジェクトを作成する。overviewノードも自動生成される。返却されるproject_idとoverview_idを後続のノード作成に使用すること。",
     annotations: {
       title: "プロジェクト作成",
       destructiveHint: false,
@@ -807,98 +589,12 @@ server.registerTool(
   })
 );
 
-// ─── Prompt 4: bootstrap_from_context ───
-server.registerPrompt(
-  "bootstrap_from_context",
-  {
-    description:
-      "現在の会話内容からCddAIプロジェクトを新規作成し、要求・要件ノードを自動抽出するワークフロー。普段の会話の途中で「これをプロジェクト化したい」と思ったときに使用。",
-    argsSchema: {
-      summary: z.string().describe("これまでの会話の要約や、プロジェクト化したい内容の説明"),
-    },
-  },
-  async ({ summary: conversation_summary }) => {
-    const childTypeMap = getChildTypeMap();
-    const allowedMap = getAllowedChildTypeMap();
-
-    return {
-      messages: [
-        {
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: `あなたはCddAIのプロジェクトブートストラップアシスタントです。
-ユーザーがこれまでの会話の中で議論した内容を、CddAIプロジェクトとして構造化してください。
-
-## 会話の要約
-${conversation_summary}
-
-## 開発手法のガイダンス
-${GUIDANCE_TEXT}
-
-## ノード階層（推奨パス）
-${Object.entries(childTypeMap).filter(([, v]) => (v as string[]).length > 0).map(([k, v]) => `- ${k} → ${(v as string[]).join(", ")}`).join("\n")}
-
-## ノード階層（許容パス・手動補完用）
-${Object.entries(allowedMap).filter(([, v]) => (v as string[]).length > 0).map(([k, v]) => `- ${k} → ${(v as string[]).join(", ")}`).join("\n")}
-
-## ワークフロー（この順序で進めてください）
-
-### Step 1: プロジェクト情報の確認
-会話の要約から以下を抽出し、ユーザーに確認してください:
-- **システム名**: 簡潔なプロジェクト名
-- **目的・背景**: なぜこのプロジェクトが必要か
-- **スコープ**: 何を含み、何を含まないか
-- **ステークホルダー**: 誰が関わるか
-- **技術的制約**: 使用技術やリソースの制約
-
-ユーザーが「OK」「作成して」と承認するまで次に進まないでください。
-
-### Step 2: プロジェクト作成
-承認後、create_project ツールでプロジェクトを作成してください。
-返却される project_id と overview_id を控えてください。
-
-### Step 3: 要求（need）ノードの抽出
-会話の中で議論された要求・ニーズを need ノードとして抽出してください。
-- 各needを1つずつテキストで提案し、ユーザーの承認を得てから作成
-- create_changelog → create_node（changelog_idを指定）の順で作成
-- create_node の parent_id には **overview_id** を指定
-- 会話から明確に読み取れるものだけ抽出し、推測で追加しない
-
-### Step 4: 下位ノードの作成（機能→仕様の順）
-各needから順番にfeature→specを作成してください。
-- featureのparent_idにはneedのIDを指定
-- specのparent_idにはfeatureのIDを指定
-- すべてのノードをoverviewに紐づけないでください
-- 各ノードは1つずつユーザーに提案し、承認を得てから作成
-
-### Step 5: 完了サマリー
-作成したプロジェクトとノード構成のサマリーを表示してください。
-Web UIでの確認URL: http://localhost:3000/projects/{project_id}
-
-## parent_idの指定ルール（重要）
-- **needノード**: parent_id = overview_id
-- **featureノード**: parent_id = 親needのID
-- **specノード**: parent_id = 親featureのID
-- **絶対にすべてのノードをoverviewに紐づけないでください**
-
-## 重要な注意事項
-- ユーザーの承認なしにcreate_projectやcreate_nodeを呼ばないでください
-- 会話から読み取れる情報のみ使い、推測でノードを追加しないでください
-- 不明な点は質問してください`,
-          },
-        },
-      ],
-    };
-  }
-);
-
 // ─── Tool 15: consult_context ───
 server.registerTool(
   "consult_context",
   {
     description:
-      "プロジェクト全体のコンテキスト（全ノードのツリー構造）を取得する。Claude Desktop側でコンサルタントとして振る舞う際に使用。取得した情報を元にcreate_node等で直接ノードを作成できる。",
+      "プロジェクト全体のコンテキスト（全ノードのツリー構造）を取得する。AI Agent側でコンサルタントとして振る舞う際に使用。取得した情報を元にcreate_node等で直接ノードを作成できる。",
     annotations: {
       title: "プロジェクトコンテキスト取得",
       readOnlyHint: true,
@@ -980,68 +676,6 @@ server.registerTool(
 
     return { content: [{ type: "text" as const, text: output }] };
   })
-);
-
-// ─── Prompt 5: consult_project ───
-server.registerPrompt(
-  "consult_project",
-  {
-    description:
-      "プロジェクトコンサルタントとして振る舞うプロンプト。ユーザーの要望を聞き、既存ノードとの重複・矛盾を分析し、適切なノード構造を提案する。",
-    argsSchema: {
-      project_id: z.string().uuid().describe("プロジェクトID"),
-      topic: z.string().optional().describe("相談したいトピックや要望"),
-    },
-  },
-  async ({ project_id, topic }) => {
-    const { context } = await apiClient.getProjectContext(project_id);
-    const project = await apiClient.getProject(project_id);
-
-    const nodeInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...(project.node_instructions || {}) };
-    const instructionsBlock = Object.entries(nodeInstructions)
-      .filter(([, v]) => (v as string).trim())
-      .map(([type, instruction]) => `- ${type}: ${instruction}`)
-      .join("\n");
-
-    return {
-      messages: [
-        {
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: `あなたはCddAIのプロジェクトコンサルタントです。
-プロジェクト「${project.name}」について、ユーザーの要望を聞き、既存のノード構造との整合性を確認しながら助言してください。
-
-## あなたの役割
-1. ユーザーの要望を正確に理解する
-2. 既存ノードとの重複・矛盾・関連性を分析する
-3. 重複がある場合は具体的に指摘し、統合・分離・修正を提案する
-4. **新しい要求や意思決定が含まれる場合は、既存ノードの更新ではなくneed/featureノードの新規作成を提案する**
-5. 既存specの内容修正（誤り修正・詳細化）のみの場合はupdate_nodeを使う
-6. 承認を得たらcreate_changelogとcreate_nodeツールでノードを作成する
-7. 必要に応じて機能・仕様へと段階的に深掘りを提案する
-
-## 現在のプロジェクト状態
-${context}
-${instructionsBlock ? `\n## ノード種別ごとの記述ルール\n${instructionsBlock}\n` : ""}
-## ノード作成ルール
-- コンテンツはマークダウン形式で記述してください
-- parent_idには適切な親ノードのIDを指定してください
-- needノードの親はoverviewノード
-- featureの親はneedノード
-- specの親はfeatureノード
-- ユーザーの承認なしにcreate_nodeを呼ばないでください
-
-## 変更履歴の記録
-- create_changelogで変更履歴を作成し、create_nodeのchangelog_idに指定してください
-- これにより変更履歴がWeb UIに表示されます
-
-${topic ? `## ユーザーの相談内容\n${topic}` : "## 開始\nユーザーの要望を聞いてください。"}`,
-          },
-        },
-      ],
-    };
-  }
 );
 
 // ─── Start server ───

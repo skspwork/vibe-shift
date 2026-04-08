@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, Position } from "@xyflow/react";
-import { NODE_LABELS } from "@cddai/shared";
+import { NODE_LABELS } from "@vibeshift/shared";
 
 interface NodeCardData {
   label: string;

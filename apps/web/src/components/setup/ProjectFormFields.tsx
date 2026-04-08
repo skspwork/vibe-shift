@@ -1,7 +1,7 @@
 "use client";
 
 import { UseFormRegister, FieldErrors } from "react-hook-form";
-import { NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@cddai/shared";
+import { NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
 
 const NODE_INSTRUCTION_TYPES = ["need", "feature", "spec"] as const;
 

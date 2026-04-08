@@ -41,8 +41,8 @@ server.registerTool(
     },
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
-      summary: z.string().describe("変更履歴の要約（タイトルになる）"),
-      reason: z.string().optional().describe("理由（変更履歴として保存）"),
+      summary: z.string().describe("何を変更したかの要約（タイトルになる）"),
+      reason: z.string().describe("変更理由（なぜこの変更が必要か）"),
     },
   },
   safeHandler(async ({ project_id, summary, reason }) => {
@@ -51,9 +51,7 @@ server.registerTool(
       title: summary,
     });
 
-    if (reason) {
-      await apiClient.addChangelogReason(changelog.id, "assistant", reason);
-    }
+    await apiClient.addChangelogReason(changelog.id, "assistant", reason);
 
     return {
       content: [{ type: "text" as const, text: JSON.stringify(changelog, null, 2) }],
@@ -127,7 +125,7 @@ server.registerTool(
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
       content: z.string().optional().describe("新しい内容（マークダウン形式）"),
-      reason: z.string().describe("変更理由（なぜこの更新が必要か）"),
+      reason: z.string().describe("変更理由（何を変更したか＋なぜこの変更が必要か）"),
     },
   },
   safeHandler(async ({ node_id, title, content, reason }) => {
@@ -168,7 +166,7 @@ server.registerTool(
     },
     inputSchema: {
       node_id: z.string().uuid().describe("非活性化対象のノードID"),
-      reason: z.string().describe("非活性化の理由（なぜこのノードを非活性化するか）"),
+      reason: z.string().describe("非活性化の理由（何を非活性化するか＋なぜ不要になったか）"),
     },
   },
   safeHandler(async ({ node_id, reason }) => {
@@ -202,7 +200,7 @@ server.registerTool(
     },
     inputSchema: {
       node_id: z.string().uuid().describe("活性化対象のノードID"),
-      reason: z.string().describe("活性化の理由（なぜこのノードを再活性化するか）"),
+      reason: z.string().describe("活性化の理由（何を活性化するか＋なぜ再度必要になったか）"),
     },
   },
   safeHandler(async ({ node_id, reason }) => {

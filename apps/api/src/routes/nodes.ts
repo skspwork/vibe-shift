@@ -25,6 +25,10 @@ function getActiveNode(id: string): any | undefined {
   return rawDb.prepare("SELECT * FROM nodes WHERE id = ? AND disabled_at IS NULL").get(id);
 }
 
+function getAnyNode(id: string): any | undefined {
+  return rawDb.prepare("SELECT * FROM nodes WHERE id = ?").get(id);
+}
+
 // ─── Hierarchy path helper ───
 
 function buildNodePaths(projectId: string): Map<string, { titles: string[]; types: string[] }> {
@@ -244,7 +248,7 @@ app.get("/search", async (c) => {
 
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const node = getActiveNode(id);
+  const node = getAnyNode(id);
   if (!node) return c.json({ error: "Not found" }, 404);
   return c.json(node);
 });
@@ -362,7 +366,7 @@ app.patch("/:id/enable", async (c) => {
 
 app.get("/:id/changelogs", async (c) => {
   const nodeId = c.req.param("id");
-  if (!getActiveNode(nodeId)) return c.json({ error: "Not found" }, 404);
+  if (!getAnyNode(nodeId)) return c.json({ error: "Not found" }, 404);
 
   // Get all linked changelogs via junction table
   const links = rawDb.prepare(`

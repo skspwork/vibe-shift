@@ -1,12 +1,11 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { NODE_LABELS } from "@cddai/shared";
-import { Pencil, ExternalLink, Eye } from "lucide-react";
+import { ExternalLink, Eye } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";
-import { EditModal } from "./EditModal";
 import { PreviewModal } from "./PreviewModal";
 import { Markdown } from "../ui/Markdown";
 
@@ -17,9 +16,7 @@ interface Props {
 }
 
 export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const queryClient = useQueryClient();
 
   const { data: node } = useQuery({
     queryKey: ["node", nodeId],
@@ -32,11 +29,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   });
 
   if (!node) return <div className="p-4 text-gray-400">読み込み中...</div>;
-
-  const handleEditSave = () => {
-    queryClient.invalidateQueries({ queryKey: ["node", nodeId] });
-    onUpdate();
-  };
 
   return (
     <div className="p-4 space-y-4">
@@ -51,22 +43,13 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
         >
           {NODE_LABELS[node.type] || node.type}
         </span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowPreviewModal(true)}
-            className="text-gray-400 hover:text-gray-600"
-            title="プレビュー"
-          >
-            <Eye size={14} />
-          </button>
-          <button
-            onClick={() => setShowEditModal(true)}
-            className="text-gray-400 hover:text-gray-600"
-            title="編集"
-          >
-            <Pencil size={14} />
-          </button>
-        </div>
+        <button
+          onClick={() => setShowPreviewModal(true)}
+          className="text-gray-400 hover:text-gray-600"
+          title="プレビュー"
+        >
+          <Eye size={14} />
+        </button>
       </div>
 
       <h2 className="font-bold text-lg">{node.title}</h2>
@@ -85,13 +68,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
         {node.content}
       </Markdown>
 
-      {showEditModal && (
-        <EditModal
-          node={node}
-          onSave={handleEditSave}
-          onClose={() => setShowEditModal(false)}
-        />
-      )}
       {showPreviewModal && (
         <PreviewModal
           node={node}
@@ -103,9 +79,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
         node={node}
         changelogList={changelogList || []}
       />
-
-
-
     </div>
   );
 }

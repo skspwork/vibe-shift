@@ -1,6 +1,6 @@
 "use client";
 
-import { ConvLogViewer } from "./ConvLogViewer";
+import { HistoryTimeline } from "./HistoryTimeline";
 
 interface ConvEntry {
   conversation: { id: string; title: string; created_at: string };
@@ -15,31 +15,19 @@ interface Props {
 }
 
 export function RationaleSection({ node, convDataList }: Props) {
-  const hasConversations = convDataList.length > 0;
-
   return (
     <div className="border-t pt-4">
-      <p className="text-xs font-medium text-gray-500 mb-2">生成経緯</p>
+      <p className="text-xs font-medium text-gray-500 mb-2">変遷</p>
 
-      {hasConversations ? (
-        <div className="space-y-3">
-          {convDataList.map((entry) => (
-            <div key={entry.conversation.id + entry.linked_at} className="space-y-1">
-              <p className="text-xs text-gray-400">{entry.purpose}</p>
-              <ConvLogViewer
-                conversation={entry.conversation}
-                messages={entry.messages}
-              />
-            </div>
-          ))}
-        </div>
+      {convDataList.length > 0 ? (
+        <HistoryTimeline entries={convDataList} />
       ) : node.created_by === "ai" ? (
         <div className="text-xs text-gray-400 italic">
-          AI生成（会話ログなし）
+          AI生成（記録なし）
         </div>
       ) : (
         <div className="text-xs text-gray-400 italic">
-          経緯なし
+          変遷なし
         </div>
       )}
     </div>

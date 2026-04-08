@@ -1,12 +1,13 @@
 "use client";
 
-import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ProjectFormFields, type ProjectFormValues } from "./ProjectFormFields";
+import { NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
+
+const NODE_INSTRUCTION_TYPES = ["need", "feature", "spec"] as const;
 
 interface Props {
   project: any;
@@ -17,6 +18,7 @@ export function ProjectSettings({ project, onClose }: Props) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [fields, setFields] = useState<Record<string, string>>({});
 
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteProject(project.id),
@@ -27,55 +29,22 @@ export function ProjectSettings({ project, onClose }: Props) {
     },
   });
 
-  const parseOverviewContent = (content: string) => {
-    const fields: Record<string, string> = {};
-    for (const line of content.split("\n")) {
-      const match = line.match(/^(.+?): (.+)$/);
-      if (match) fields[match[1]] = match[2];
-    }
-    return fields;
-  };
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isDirty },
-    setValue,
-    watch,
-    reset,
-  } = useForm<ProjectFormValues>({
-    defaultValues: {
-      name: "",
-      purpose: "",
-      constraints: "",
-      node_instructions: {},
-    },
-  });
-
   useEffect(() => {
     if (!project) return;
     api.getGraph(project.id).then((graph) => {
       const overview = graph.nodes.find((n: any) => n.type === "overview");
-      const fields = overview ? parseOverviewContent(overview.content || "") : {};
-      reset({
-        name: project.name,
-        purpose: fields["目的・背景"] || "",
-        constraints: fields["技術的制約"] || "",
-        node_instructions: project.node_instructions || {},
-      });
+      if (overview?.content) {
+        const parsed: Record<string, string> = {};
+        for (const line of overview.content.split("\n")) {
+          const match = line.match(/^(.+?): (.+)$/);
+          if (match) parsed[match[1]] = match[2];
+        }
+        setFields(parsed);
+      }
     });
-  }, [project, reset]);
+  }, [project]);
 
-  const mutation = useMutation({
-    mutationFn: (data: any) => api.updateProject(project.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project", project.id] });
-      queryClient.invalidateQueries({ queryKey: ["graph", project.id] });
-      onClose();
-    },
-  });
-
-  const nodeInstructions = watch("node_instructions");
+  const nodeInstructions = project.node_instructions || {};
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -87,33 +56,42 @@ export function ProjectSettings({ project, onClose }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
-          <ProjectFormFields
-            register={register}
-            errors={errors}
-            nodeInstructions={nodeInstructions}
-            onChangeNodeInstruction={(lane, value) => {
-              setValue("node_instructions", { ...nodeInstructions, [lane]: value }, { shouldDirty: true });
-            }}
-          />
-
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 transition"
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending || !isDirty}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              {mutation.isPending ? "保存中..." : "保存する"}
-            </button>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">システム名</label>
+            <p className="text-sm">{project.name}</p>
           </div>
-        </form>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">目的・背景</label>
+            <p className="text-sm whitespace-pre-wrap">{fields["目的・背景"] || "—"}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-1">技術的制約</label>
+            <p className="text-sm whitespace-pre-wrap">{fields["技術的制約"] || "—"}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-500 mb-2">ノード種別ごとのAI記述ルール</label>
+            <div className="space-y-2">
+              {NODE_INSTRUCTION_TYPES.map((lane) => (
+                <div key={lane}>
+                  <label className="block text-xs font-medium text-gray-400 mb-0.5">
+                    {NODE_LABELS[lane]}
+                  </label>
+                  <p className="text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 border rounded-lg px-3 py-1.5">
+                    {nodeInstructions[lane] || DEFAULT_NODE_INSTRUCTIONS[lane] || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400 pt-2">
+            設定の変更はMCPサーバー経由でAIエージェントから行えます。
+          </p>
+        </div>
 
         <div className="border-t mt-6 pt-4">
           {!showDeleteConfirm ? (

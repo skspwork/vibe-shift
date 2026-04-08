@@ -18,6 +18,8 @@ export const apiClient = {
   getProject: (id: string) => request<any>(`/projects/${id}`),
   createProject: (data: any) =>
     request<any>("/projects", { method: "POST", body: JSON.stringify(data) }),
+  updateProject: (id: string, data: any) =>
+    request<any>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   // Graph
   getProjectGraph: (projectId: string) =>

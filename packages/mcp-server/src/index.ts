@@ -542,7 +542,45 @@ server.registerTool(
   })
 );
 
-// ─── Tool 15: consult_context ───
+// ─── Tool 15: update_project ───
+server.registerTool(
+  "update_project",
+  {
+    description:
+      "プロジェクト設定を更新する。目的・技術的制約・ノード種別ごとのAI記述ルールを変更できる。overviewノードのcontentも自動更新される。",
+    annotations: {
+      title: "プロジェクト設定更新",
+      destructiveHint: false,
+      readOnlyHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    inputSchema: {
+      project_id: z.string().uuid().describe("プロジェクトID"),
+      name: z.string().optional().describe("新しいプロジェクト名"),
+      purpose: z.string().optional().describe("新しい目的・背景"),
+      constraints: z.string().optional().describe("新しい技術的制約"),
+      node_instructions: z.record(
+        z.enum(["need", "feature", "spec"]),
+        z.string()
+      ).optional().describe("ノード種別ごとのAI記述ルール（例: { need: '...', feature: '...', spec: '...' }）"),
+    },
+  },
+  safeHandler(async ({ project_id, name, purpose, constraints, node_instructions }) => {
+    const updates: Record<string, any> = {};
+    if (name !== undefined) updates.name = name;
+    if (purpose !== undefined) updates.purpose = purpose;
+    if (constraints !== undefined) updates.constraints = constraints;
+    if (node_instructions !== undefined) updates.node_instructions = node_instructions;
+
+    const updated = await apiClient.updateProject(project_id, updates);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(updated, null, 2) }],
+    };
+  })
+);
+
+// ─── Tool 16: consult_context ───
 server.registerTool(
   "consult_context",
   {

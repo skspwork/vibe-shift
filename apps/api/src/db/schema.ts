@@ -28,6 +28,7 @@ export const nodes = sqliteTable("nodes", {
   content: text("content").notNull().default(""),
   url: text("url"),
   changelog_id: text("changelog_id").references(() => changelogs.id),
+  requirement_category: text("requirement_category"),
   created_by: text("created_by").notNull().default("user"),
   created_at: text("created_at").notNull(),
   updated_at: text("updated_at").notNull(),

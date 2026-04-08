@@ -119,6 +119,7 @@ app.post("/", async (c) => {
     content: parsed.content,
     url: parsed.url || null,
     changelog_id: parsed.changelog_id || null,
+    requirement_category: parsed.requirement_category || null,
     created_by: parsed.created_by,
     created_at: now,
     updated_at: now,

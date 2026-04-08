@@ -109,6 +109,13 @@ function initDb() {
     // Column already renamed
   }
 
+  // Add requirement_category column if not exists
+  try {
+    sqlite.exec("ALTER TABLE nodes ADD COLUMN requirement_category TEXT");
+  } catch {
+    // Column already exists
+  }
+
   // Migrate existing nodes.changelog_id → node_changelogs
   const existing = sqlite.prepare(
     "SELECT id, changelog_id, created_at FROM nodes WHERE changelog_id IS NOT NULL"

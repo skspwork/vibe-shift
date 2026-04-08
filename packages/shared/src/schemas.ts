@@ -103,6 +103,8 @@ export const UpdateProjectSchema = z.object({
   node_instructions: NodeInstructionsSchema,
 });
 
+export const RequirementCategory = z.enum(["functional", "non_functional"]);
+
 export const CreateNodeSchema = z.object({
   project_id: z.string().uuid(),
   type: NodeType,
@@ -112,6 +114,7 @@ export const CreateNodeSchema = z.object({
   changelog_id: z.string().uuid(),
   url: z.string().url().optional(),
   created_by: CreatedBy.default("user"),
+  requirement_category: RequirementCategory.optional(),
 });
 
 export const UpdateNodeSchema = z.object({
@@ -120,6 +123,7 @@ export const UpdateNodeSchema = z.object({
   url: z.string().url().nullable().optional(),
   changelog_id: z.string().uuid().nullable().optional(),
   changelog_purpose: z.string().optional(),
+  requirement_category: RequirementCategory.optional(),
 });
 
 export const CreateEdgeSchema = z.object({

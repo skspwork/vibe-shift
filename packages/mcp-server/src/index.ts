@@ -346,9 +346,13 @@ server.registerTool(
         .uuid()
         .describe("変更履歴ID（必須。先にcreate_changelogで作成したIDを指定）"),
       url: z.string().optional().describe("外部URL（任意）"),
+      requirement_category: z
+        .enum(["functional", "non_functional"])
+        .optional()
+        .describe("要求分類（needノードのみ。functional=機能要求、non_functional=非機能要求。省略時はfunctional）"),
     },
   },
-  safeHandler(async ({ project_id, type, title, content, parent_id, changelog_id, url }) => {
+  safeHandler(async ({ project_id, type, title, content, parent_id, changelog_id, url, requirement_category }) => {
     const node = await apiClient.createNode({
       project_id,
       type,
@@ -358,6 +362,7 @@ server.registerTool(
       changelog_id,
       url,
       created_by: "ai",
+      requirement_category: type === "need" ? (requirement_category || "functional") : undefined,
     });
     return {
       content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) }],

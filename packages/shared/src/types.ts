@@ -32,6 +32,7 @@ export interface AppNode {
   title: string;
   content: string;
   changelog_id: string | null;
+  requirement_category: "functional" | "non_functional" | null;
   created_by: CreatedByValue;
   created_at: string;
   updated_at: string;

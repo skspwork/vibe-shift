@@ -25,8 +25,38 @@ const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> 
 // Lanes within one group (need → feature → spec)
 const GROUP_LANES = ["need", "feature", "spec"];
 
+function SeparatorNode({ data }: { data: { width: number; label: string } }) {
+  return (
+    <div style={{ width: data.width, position: "relative" }}>
+      <div
+        style={{
+          borderTop: "2px dashed #cbd5e1",
+          width: "100%",
+          position: "absolute",
+          top: 12,
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          top: 2,
+          left: 0,
+          backgroundColor: "#f8fafc",
+          padding: "0 8px",
+          fontSize: 11,
+          color: "#94a3b8",
+          fontWeight: 500,
+        }}
+      >
+        {data.label}
+      </span>
+    </div>
+  );
+}
+
 const nodeTypes = {
   custom: NodeCard,
+  separator: SeparatorNode,
 };
 
 interface Props {
@@ -91,13 +121,13 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     return set;
   }, [focusNodeId, adjDown, adjUp]);
 
-  // Layout: 2-column grid of need groups
+  // Layout: split functional / non-functional need groups with separator
   const rfNodes: RFNode[] = useMemo(() => {
     const NODE_HEIGHT = 100;
     const ROW_GAP = 20;
     const LANE_WIDTH = 220;
     const GROUP_WIDTH = GROUP_LANES.length * LANE_WIDTH;
-    const GROUP_GAP_X = 60; // horizontal gap between columns
+    const GROUP_GAP_X = 60;
 
     const nodeMap = new Map(rawNodes.map((n: any) => [n.id, n]));
     const needNodes = rawNodes.filter((n: any) => n.type === "need");
@@ -118,6 +148,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
           selected: node.id === selectedNodeId,
           dimmed: !isFocused || isDisabled,
           disabled: isDisabled,
+          requirementCategory: node.requirement_category,
         },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
@@ -125,7 +156,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     };
 
     // Build groups: each need + features + specs
-    const groups = needNodes.map((need: any) => {
+    const buildGroup = (need: any) => {
       assignedIds.add(need.id);
       const features: any[] = [];
       const featureSpecs = new Map<string, any[]>();
@@ -142,7 +173,6 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
           if (child.type === "feature") {
             features.push(child);
             assignedIds.add(child.id);
-            // Collect spec descendants
             const specs: any[] = [];
             const specQueue = [child.id];
             const specVisited = new Set([child.id]);
@@ -166,7 +196,6 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
         }
       }
 
-      // Calculate group height
       const height = features.length > 0
         ? features.reduce((sum, f) => {
             const specs = featureSpecs.get(f.id) || [];
@@ -175,53 +204,81 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
         : NODE_HEIGHT;
 
       return { need, features, featureSpecs, height };
-    });
+    };
 
-    // Place groups in 2-column grid
-    // Track current Y for each column independently
+    // Split needs into functional / non-functional
+    const functionalNeeds = needNodes.filter((n: any) => n.requirement_category !== "non_functional");
+    const nfNeeds = needNodes.filter((n: any) => n.requirement_category === "non_functional");
+
+    const functionalGroups = functionalNeeds.map(buildGroup);
+    const nfGroups = nfNeeds.map(buildGroup);
+
+    // Place groups in multi-column grid
+    const placeGroups = (groups: ReturnType<typeof buildGroup>[], columnY: number[]) => {
+      for (const group of groups) {
+        let col = 0;
+        for (let c = 1; c < graphColumns; c++) {
+          if (columnY[c] < columnY[col]) col = c;
+        }
+
+        const baseX = col * (GROUP_WIDTH + GROUP_GAP_X);
+        const startY = columnY[col];
+
+        const needY = startY + group.height / 2 - NODE_HEIGHT / 2;
+        addNode(group.need, baseX, needY);
+
+        let featureY = startY;
+        for (const feature of group.features) {
+          const specs = group.featureSpecs.get(feature.id) || [];
+          const blockHeight = Math.max(NODE_HEIGHT, specs.length * NODE_HEIGHT);
+
+          const featureCenterY = featureY + blockHeight / 2 - NODE_HEIGHT / 2;
+          addNode(feature, baseX + LANE_WIDTH, featureCenterY);
+
+          const specStartY = featureY + (blockHeight - specs.length * NODE_HEIGHT) / 2;
+          specs.forEach((spec: any, i: number) => {
+            addNode(spec, baseX + LANE_WIDTH * 2, specStartY + i * NODE_HEIGHT);
+          });
+
+          featureY += blockHeight;
+        }
+
+        columnY[col] = startY + group.height + ROW_GAP;
+      }
+    };
+
     const columnY = new Array(graphColumns).fill(40);
 
-    for (const group of groups) {
-      // Pick the column with the smallest current Y (shortest column)
-      let col = 0;
-      for (let c = 1; c < graphColumns; c++) {
-        if (columnY[c] < columnY[col]) col = c;
-      }
+    // Place functional groups first
+    placeGroups(functionalGroups, columnY);
 
-      const baseX = col * (GROUP_WIDTH + GROUP_GAP_X);
-      const startY = columnY[col];
+    // Add separator and place non-functional groups if any
+    if (nfGroups.length > 0) {
+      const separatorY = Math.max(...columnY) + ROW_GAP;
+      const totalWidth = graphColumns * GROUP_WIDTH + (graphColumns - 1) * GROUP_GAP_X;
 
-      // Place need node (vertically centered)
-      const needY = startY + group.height / 2 - NODE_HEIGHT / 2;
-      addNode(group.need, baseX, needY);
+      result.push({
+        id: "__separator__",
+        type: "separator",
+        position: { x: 0, y: separatorY },
+        data: { width: totalWidth, label: "非機能要求" },
+        selectable: false,
+        draggable: false,
+      } as RFNode);
 
-      // Place features and specs
-      let featureY = startY;
-      for (const feature of group.features) {
-        const specs = group.featureSpecs.get(feature.id) || [];
-        const blockHeight = Math.max(NODE_HEIGHT, specs.length * NODE_HEIGHT);
-
-        const featureCenterY = featureY + blockHeight / 2 - NODE_HEIGHT / 2;
-        addNode(feature, baseX + LANE_WIDTH, featureCenterY);
-
-        const specStartY = featureY + (blockHeight - specs.length * NODE_HEIGHT) / 2;
-        specs.forEach((spec: any, i: number) => {
-          addNode(spec, baseX + LANE_WIDTH * 2, specStartY + i * NODE_HEIGHT);
-        });
-
-        featureY += blockHeight;
-      }
-
-      columnY[col] = startY + group.height + ROW_GAP;
+      const nfStartY = separatorY + 40;
+      const nfColumnY = new Array(graphColumns).fill(nfStartY);
+      placeGroups(nfGroups, nfColumnY);
     }
 
-    // Mark overview as assigned (don't display it)
+    // Mark overview as assigned
     rawNodes.filter((n: any) => n.type === "overview").forEach((n: any) => assignedIds.add(n.id));
 
     // Place orphan nodes
     const orphans = rawNodes.filter((n: any) => !assignedIds.has(n.id));
     if (orphans.length > 0) {
-      const maxY = Math.max(...columnY);
+      const allY = result.map((n) => n.position.y + NODE_HEIGHT);
+      const maxY = Math.max(...allY, ...columnY);
       orphans.forEach((node: any, i: number) => {
         addNode(node, 0, maxY + ROW_GAP + i * NODE_HEIGHT);
       });
@@ -258,6 +315,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
 
   const onNodeClick = useCallback(
     (_: any, node: RFNode) => {
+      if (node.id === "__separator__") return;
       setSelectedNodeId(node.id);
       setFocusNodeId(node.id);
     },
@@ -268,7 +326,6 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     setFocusNodeId(null);
   }, [setFocusNodeId]);
 
-  // Lane headers for 2 columns
   return (
     <div className="w-full h-full">
       <ReactFlow

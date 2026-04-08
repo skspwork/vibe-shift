@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { useEffect, useCallback, useState } from "react";
+import { X, Copy, Check } from "lucide-react";
 import { NODE_LABELS } from "@cddai/shared";
 import type { AppNode } from "@cddai/shared";
 import { Markdown } from "../ui/Markdown";
@@ -12,7 +12,16 @@ interface Props {
 }
 
 export function PreviewModal({ node, onClose }: Props) {
+  const [copied, setCopied] = useState(false);
   const handleClose = useCallback(() => onClose(), [onClose]);
+
+  const handleCopy = useCallback(() => {
+    const text = `# ${node.title}\n\n${node.content}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [node.title, node.content]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -39,12 +48,21 @@ export function PreviewModal({ node, onClose }: Props) {
             </span>
             <h2 className="font-semibold text-lg">{node.title}</h2>
           </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopy}
+              className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-xs"
+              title="Markdownをコピー"
+            >
+              {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+            </button>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Body */}

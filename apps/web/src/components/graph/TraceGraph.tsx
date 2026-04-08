@@ -100,10 +100,8 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
   // Layout
   const rfNodes: RFNode[] = useMemo(() => {
     const NODE_HEIGHT = 100;
-    const SUB_NODE_HEIGHT = 60;
     const ROW_GAP = 20;
     const LANE_WIDTH = 220;
-    const SUB_NODE_X_OFFSET = LANE_WIDTH;
 
     // Lane X positions
     const laneX: Record<string, number> = {};
@@ -115,7 +113,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
     const assignedIds = new Set<string>();
 
     const result: RFNode[] = [];
-    const addNode = (node: any, x: number, y: number, isSubNode: boolean = false) => {
+    const addNode = (node: any, x: number, y: number) => {
       const isFocused = focusSet ? focusSet.has(node.id) : true;
       result.push({
         id: node.id,
@@ -127,7 +125,6 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
           colors: NODE_COLORS[node.type] || NODE_COLORS.need,
           selected: node.id === selectedNodeId,
           dimmed: !isFocused,
-          isSubNode,
         },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
@@ -180,7 +177,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
       const totalFeaturesHeight = features.length > 0
         ? features.reduce((sum, f) => {
             const subs = featureSubNodes.get(f.id) || [];
-            return sum + Math.max(NODE_HEIGHT, subs.length * SUB_NODE_HEIGHT);
+            return sum + Math.max(NODE_HEIGHT, subs.length * NODE_HEIGHT);
           }, 0)
         : NODE_HEIGHT;
 
@@ -197,16 +194,16 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
       let featureY = currentY;
       for (const feature of group.features) {
         const subs = group.featureSubNodes.get(feature.id) || [];
-        const featureBlockHeight = Math.max(NODE_HEIGHT, subs.length * SUB_NODE_HEIGHT);
+        const featureBlockHeight = Math.max(NODE_HEIGHT, subs.length * NODE_HEIGHT);
 
         const featureCenterY = featureY + featureBlockHeight / 2 - NODE_HEIGHT / 2;
         addNode(feature, laneX["feature"], featureCenterY);
 
         // Place spec sub-nodes to the right of feature
-        const subX = laneX["feature"] + SUB_NODE_X_OFFSET;
-        const subStartY = featureY + (featureBlockHeight - subs.length * SUB_NODE_HEIGHT) / 2;
+        const subX = laneX["feature"] + LANE_WIDTH;
+        const subStartY = featureY + (featureBlockHeight - subs.length * NODE_HEIGHT) / 2;
         subs.forEach((sub: any, i: number) => {
-          addNode(sub, subX, subStartY + i * SUB_NODE_HEIGHT, true);
+          addNode(sub, subX, subStartY + i * NODE_HEIGHT);
         });
 
         featureY += featureBlockHeight;

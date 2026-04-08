@@ -13,6 +13,9 @@ interface AppState {
   panToNodeId: string | null;
   setPanToNodeId: (id: string | null) => void;
 
+  // Graph columns
+  graphColumns: number;
+  setGraphColumns: (n: number) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -24,4 +27,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   panToNodeId: null,
   setPanToNodeId: (id) => set({ panToNodeId: id }),
+
+  graphColumns: 2,
+  setGraphColumns: (n) => set({ graphColumns: Math.max(1, Math.min(10, n)) }),
 }));

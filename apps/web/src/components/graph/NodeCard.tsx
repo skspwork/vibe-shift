@@ -28,7 +28,7 @@ export function NodeCard({ data }: { data: NodeCardData }) {
         boxShadow: data.selected ? "0 0 0 2px #3b82f6" : "none",
       }}
     >
-      <Handle type="target" position={Position.Left} className="!bg-gray-400" />
+      <Handle type="target" position={Position.Left} className="!bg-transparent !border-none !w-0 !h-0" />
       <div className="text-[10px] font-medium opacity-70 uppercase flex items-center gap-1">
         {NODE_LABELS[data.nodeType] || data.nodeType}
         {isNonFunctional && (
@@ -38,7 +38,7 @@ export function NodeCard({ data }: { data: NodeCardData }) {
         )}
       </div>
       <div className="text-sm font-semibold truncate">{data.label}</div>
-      <Handle type="source" position={Position.Right} className="!bg-gray-400" />
+      <Handle type="source" position={Position.Right} className="!bg-transparent !border-none !w-0 !h-0" />
     </div>
   );
 }

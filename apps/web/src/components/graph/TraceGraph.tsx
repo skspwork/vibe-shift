@@ -351,10 +351,11 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
         defaultViewport={savedViewport}
         fitView={!savedViewport}
         fitViewOptions={{ padding: 0.2 }}
+        nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
       >
         <Background />
-        <Controls />
+        <Controls showInteractive={false} showFitView={false} />
         <FocusHandler rfNodes={rfNodes} />
       </ReactFlow>
     </div>

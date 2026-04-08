@@ -215,6 +215,11 @@ app.delete("/:id", async (c) => {
   }
 
   if (nodeIds.length > 0) {
+    // Delete node_conversations for these nodes
+    await db
+      .delete(schema.node_conversations)
+      .where(inArray(schema.node_conversations.node_id, nodeIds));
+
     // Delete edges referencing these nodes
     await db
       .delete(schema.edges)

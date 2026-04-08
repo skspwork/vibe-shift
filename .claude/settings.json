@@ -12,5 +12,18 @@
       "mcp__cddai__create_changelog",
       "mcp__cddai__list_projects"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[HOOK] コード変更を検知。必ずCddAIのMCPサーバー経由でノードへの反映が必要か確認し、必要であればノードの追加・更新・削除をしてください。スキップ禁止。'"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -2,15 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { NODE_LABELS, getAllowedChildTypeMap } from "@cddai/shared";
+import { NODE_LABELS } from "@cddai/shared";
 import { useAppStore } from "@/lib/store";
-import { Pencil, Plus, Trash2, ExternalLink, Eye } from "lucide-react";
+import { Pencil, Trash2, ExternalLink, Eye } from "lucide-react";
 import { useState } from "react";
 import { RationaleSection } from "./RationaleSection";
 import { EditModal } from "./EditModal";
 import { PreviewModal } from "./PreviewModal";
-
-import { NodeCreateForm } from "../node/NodeCreateForm";
 import { Markdown } from "../ui/Markdown";
 
 interface Props {
@@ -22,7 +20,6 @@ interface Props {
 export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [showCreateChild, setShowCreateChild] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const queryClient = useQueryClient();
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
@@ -50,28 +47,10 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
 
   if (!node) return <div className="p-4 text-gray-400">読み込み中...</div>;
 
-  const allowedMap = getAllowedChildTypeMap();
-  const childTypes = allowedMap[node.type] || [];
-  const canCreateChild = childTypes.length > 0;
-
   const handleEditSave = () => {
     queryClient.invalidateQueries({ queryKey: ["node", nodeId] });
     onUpdate();
   };
-
-  if (showCreateChild) {
-    return (
-      <NodeCreateForm
-        parentNode={node}
-        projectId={projectId}
-        onCreated={() => {
-          setShowCreateChild(false);
-          onUpdate();
-        }}
-        onCancel={() => setShowCreateChild(false)}
-      />
-    );
-  }
 
   return (
     <div className="p-4 space-y-4">
@@ -145,14 +124,6 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
         <p className="text-xs font-medium text-gray-500 uppercase">
           アクション
         </p>
-        {canCreateChild && (
-          <button
-            onClick={() => setShowCreateChild(true)}
-            className="w-full flex items-center gap-2 text-sm px-3 py-2 border rounded-lg hover:bg-gray-50 transition"
-          >
-            <Plus size={16} /> 子ノードを手動で作成
-          </button>
-        )}
         {node.type !== "overview" && (
           <>
             {confirmDelete ? (

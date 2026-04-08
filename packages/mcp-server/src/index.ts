@@ -307,7 +307,7 @@ server.registerTool(
   "create_node",
   {
     description:
-      "ノードを作成し、親ノードにリンクする。種別: need, feature, spec。conversation_idを指定すると、Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
+      "ノードを作成し、親ノードにリンクする。種別: need, feature, spec。conversation_idは必須。必ず先にcreate_conversationで会話を作成し、そのIDを指定すること。Web UIの詳細パネルで生成経緯（会話ログ）が表示される。【注意】必ずユーザーにノード内容を提案し、明確な承認を得てから呼び出すこと。承認なしの自動作成は禁止。",
     annotations: {
       title: "ノード作成",
       destructiveHint: false,
@@ -326,8 +326,7 @@ server.registerTool(
       conversation_id: z
         .string()
         .uuid()
-        .optional()
-        .describe("会話ID（create_conversationで作成したIDを指定すると生成経緯として紐付く）"),
+        .describe("会話ID（必須。先にcreate_conversationで作成したIDを指定）"),
       url: z.string().optional().describe("外部URL（任意）"),
     },
   },
@@ -352,7 +351,7 @@ server.registerTool(
 server.registerTool(
   "update_node",
   {
-    description: "既存ノードのタイトル・内容・経緯メモを更新する。【注意】更新内容をユーザーに提示し、承認を得てから呼び出すこと。大幅な変更の場合はcheck_impactで下流ノードへの影響も確認すること。",
+    description: "既存ノードのタイトル・内容を更新する。reason（変更理由）は必須で、自動的に会話ログとして記録される。【注意】更新内容をユーザーに提示し、承認を得てから呼び出すこと。大幅な変更の場合はcheck_impactで下流ノードへの影響も確認すること。",
     annotations: {
       title: "ノード更新",
       destructiveHint: false,
@@ -364,20 +363,28 @@ server.registerTool(
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
       content: z.string().optional().describe("新しい内容"),
-      conversation_id: z.string().uuid().optional().describe("更新経緯の会話ID（中間テーブルに追加リンクされる、上書きではない）"),
-      conversation_purpose: z.string().optional().describe("会話の目的ラベル（例: '更新: 検索UI改善'）。省略時は '更新'"),
+      reason: z.string().describe("変更理由（なぜこの更新が必要か）"),
     },
   },
-  safeHandler(async ({ node_id, title, content, conversation_id, conversation_purpose }) => {
+  safeHandler(async ({ node_id, title, content, reason }) => {
+    const node = await apiClient.getNode(node_id);
+
+    // 会話を自動作成し、reasonをAIメッセージとして記録
+    const conv = await apiClient.createConversation({
+      project_id: node.project_id,
+      title: `更新: ${node.title}`,
+    });
+    await apiClient.addConvMessage(conv.id, "assistant", reason);
+
     const updates: Record<string, any> = {};
     if (title !== undefined) updates.title = title;
     if (content !== undefined) updates.content = content;
-    if (conversation_id !== undefined) updates.conversation_id = conversation_id;
-    if (conversation_purpose !== undefined) updates.conversation_purpose = conversation_purpose;
+    updates.conversation_id = conv.id;
+    updates.conversation_purpose = "更新";
 
-    const node = await apiClient.updateNode(node_id, updates);
+    const updated = await apiClient.updateNode(node_id, updates);
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) }],
+      content: [{ type: "text" as const, text: JSON.stringify(updated, null, 2) }],
     };
   })
 );

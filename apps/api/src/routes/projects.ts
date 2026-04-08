@@ -27,7 +27,7 @@ app.post("/", async (c) => {
   await db.insert(schema.projects).values({
     id: projectId,
     name: parsed.name,
-    active_lanes: JSON.stringify(parsed.active_lanes),
+    active_lanes: JSON.stringify(["need", "feature"]),
     node_instructions: parsed.node_instructions ? JSON.stringify(parsed.node_instructions) : null,
     created_at: now,
   });
@@ -58,7 +58,7 @@ app.post("/", async (c) => {
     {
       id: projectId,
       name: parsed.name,
-      active_lanes: parsed.active_lanes,
+      active_lanes: ["need", "feature"],
       node_instructions: parsed.node_instructions,
       created_at: now,
       overview_id: overviewId,
@@ -80,8 +80,6 @@ app.patch("/:id", async (c) => {
 
   const updates: Record<string, any> = {};
   if (parsed.name !== undefined) updates.name = parsed.name;
-  if (parsed.active_lanes !== undefined)
-    updates.active_lanes = JSON.stringify(parsed.active_lanes);
   if (parsed.node_instructions !== undefined)
     updates.node_instructions = parsed.node_instructions ? JSON.stringify(parsed.node_instructions) : null;
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { UseFormRegister, FieldErrors } from "react-hook-form";
-import { LANE_TYPES, NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@cddai/shared";
+import { NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@cddai/shared";
+
+const NODE_INSTRUCTION_TYPES = ["need", "feature", "spec"] as const;
 
 export interface ProjectFormValues {
   name: string;
@@ -9,16 +11,13 @@ export interface ProjectFormValues {
   scope: string;
   stakeholders: string;
   constraints: string;
-  active_lanes: string[];
   node_instructions: Record<string, string>;
 }
 
 interface Props {
   register: UseFormRegister<ProjectFormValues>;
   errors: FieldErrors<ProjectFormValues>;
-  activeLanes: string[];
   nodeInstructions: Record<string, string>;
-  onToggleLane: (lane: string) => void;
   onChangeNodeInstruction: (lane: string, value: string) => void;
   /** Show required markers and placeholders for create mode */
   isCreate?: boolean;
@@ -27,9 +26,7 @@ interface Props {
 export function ProjectFormFields({
   register,
   errors,
-  activeLanes,
   nodeInstructions,
-  onToggleLane,
   onChangeNodeInstruction,
   isCreate,
 }: Props) {
@@ -97,26 +94,6 @@ export function ProjectFormFields({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-2">使用するレーン</label>
-        <div className="flex flex-wrap gap-2">
-          {LANE_TYPES.map((lane) => (
-            <button
-              key={lane}
-              type="button"
-              onClick={() => onToggleLane(lane)}
-              className={`px-3 py-1.5 rounded-lg text-sm border transition ${
-                activeLanes?.includes(lane)
-                  ? "bg-blue-50 border-blue-400 text-blue-700"
-                  : "bg-gray-50 border-gray-200 text-gray-500"
-              }`}
-            >
-              {NODE_LABELS[lane]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
         <label className="block text-sm font-medium mb-2">
           ノード種別ごとのAI記述ルール
         </label>
@@ -124,7 +101,7 @@ export function ProjectFormFields({
           未指定の場合デフォルト値が使われます
         </p>
         <div className="space-y-2">
-          {(activeLanes || []).map((lane) => (
+          {NODE_INSTRUCTION_TYPES.map((lane) => (
             <div key={lane}>
               <label className="block text-xs font-medium text-gray-600 mb-0.5">
                 {NODE_LABELS[lane]}

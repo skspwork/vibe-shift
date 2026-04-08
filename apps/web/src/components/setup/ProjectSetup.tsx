@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CreateProjectSchema } from "@cddai/shared";
+
 import { api } from "@/lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -26,7 +27,6 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
       scope: "",
       stakeholders: "",
       constraints: "",
-      active_lanes: ["need", "feature"],
       node_instructions: {},
     },
   });
@@ -39,17 +39,7 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
     },
   });
 
-  const activeLanes = watch("active_lanes");
   const nodeInstructions = watch("node_instructions");
-
-  const toggleLane = (lane: string) => {
-    const current = activeLanes || [];
-    if (current.includes(lane)) {
-      setValue("active_lanes", current.filter((l) => l !== lane));
-    } else {
-      setValue("active_lanes", [...current, lane]);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-8">
@@ -60,9 +50,7 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
           <ProjectFormFields
             register={register}
             errors={errors}
-            activeLanes={activeLanes}
             nodeInstructions={nodeInstructions}
-            onToggleLane={toggleLane}
             onChangeNodeInstruction={(lane, value) => {
               setValue("node_instructions", { ...nodeInstructions, [lane]: value });
             }}

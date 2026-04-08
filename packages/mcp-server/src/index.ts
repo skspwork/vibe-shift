@@ -876,21 +876,15 @@ server.registerTool(
       scope: z.string().optional().describe("スコープ（任意）"),
       stakeholders: z.string().optional().describe("ステークホルダー（任意）"),
       constraints: z.string().optional().describe("技術的制約（任意）"),
-      active_lanes: z
-        .array(z.enum(["need", "feature"]))
-        .optional()
-        .describe("使用するレーン（省略時は全レーン）"),
     },
   },
-  safeHandler(async ({ name, purpose, scope, stakeholders, constraints, active_lanes }) => {
-    const defaultLanes = ["need", "feature"];
+  safeHandler(async ({ name, purpose, scope, stakeholders, constraints }) => {
     const project = await apiClient.createProject({
       name,
       purpose,
       scope: scope || "",
       stakeholders: stakeholders || "",
       constraints: constraints || "",
-      active_lanes: active_lanes || defaultLanes,
     });
     return {
       content: [{

@@ -15,11 +15,6 @@ export const VISIBLE_NODE_TYPES = [
   "overview", "need", "feature", "spec",
 ] as const;
 
-export const LANE_TYPES = [
-  "need",
-  "feature",
-] as const;
-
 export const FEATURE_SUB_TYPES = ["spec"] as const;
 
 export const CHILD_TYPE_MAP: Record<string, string[]> = {
@@ -96,7 +91,6 @@ export const CreateProjectSchema = z.object({
   scope: z.string().optional(),
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
-  active_lanes: z.array(z.enum(["need", "feature"])),
   node_instructions: NodeInstructionsSchema,
 });
 
@@ -106,7 +100,6 @@ export const UpdateProjectSchema = z.object({
   scope: z.string().optional(),
   stakeholders: z.string().optional(),
   constraints: z.string().optional(),
-  active_lanes: z.array(z.enum(["need", "feature"])).optional(),
   node_instructions: NodeInstructionsSchema,
 });
 

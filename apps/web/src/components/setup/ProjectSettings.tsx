@@ -50,7 +50,6 @@ export function ProjectSettings({ project, onClose }: Props) {
       scope: "",
       stakeholders: "",
       constraints: "",
-      active_lanes: [],
       node_instructions: {},
     },
   });
@@ -66,7 +65,6 @@ export function ProjectSettings({ project, onClose }: Props) {
         scope: fields["スコープ"] || "",
         stakeholders: fields["ステークホルダー"] || "",
         constraints: fields["技術的制約"] || "",
-        active_lanes: project.active_lanes || [],
         node_instructions: project.node_instructions || {},
       });
     });
@@ -81,17 +79,7 @@ export function ProjectSettings({ project, onClose }: Props) {
     },
   });
 
-  const activeLanes = watch("active_lanes");
   const nodeInstructions = watch("node_instructions");
-
-  const toggleLane = (lane: string) => {
-    const current = activeLanes || [];
-    if (current.includes(lane)) {
-      setValue("active_lanes", current.filter((l) => l !== lane), { shouldDirty: true });
-    } else {
-      setValue("active_lanes", [...current, lane], { shouldDirty: true });
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -107,9 +95,7 @@ export function ProjectSettings({ project, onClose }: Props) {
           <ProjectFormFields
             register={register}
             errors={errors}
-            activeLanes={activeLanes}
             nodeInstructions={nodeInstructions}
-            onToggleLane={toggleLane}
             onChangeNodeInstruction={(lane, value) => {
               setValue("node_instructions", { ...nodeInstructions, [lane]: value }, { shouldDirty: true });
             }}

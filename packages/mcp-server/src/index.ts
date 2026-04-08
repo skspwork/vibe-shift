@@ -430,7 +430,7 @@ server.registerTool(
   "get_implementation_brief",
   {
     description:
-      "ノードの実装指示書を生成する。上流の全コンテキスト（要求・機能・仕様）を構造化テキストで返す。Claude Codeでの実装時に使用。",
+      "ノードの実装指示書を生成する。上流の全コンテキスト（要求・機能・仕様）を構造化テキストで返す。AI Agentでの実装時に使用。",
     annotations: {
       title: "実装指示書",
       readOnlyHint: true,

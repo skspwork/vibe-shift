@@ -35,8 +35,6 @@ app.post("/", async (c) => {
   // Create overview node
   const overviewContent = [
     `目的・背景: ${parsed.purpose}`,
-    parsed.scope ? `スコープ: ${parsed.scope}` : null,
-    parsed.stakeholders ? `ステークホルダー: ${parsed.stakeholders}` : null,
     parsed.constraints ? `技術的制約: ${parsed.constraints}` : null,
   ]
     .filter(Boolean)
@@ -91,7 +89,7 @@ app.patch("/:id", async (c) => {
   }
 
   // Update overview node content if project info fields changed
-  if (parsed.name || parsed.purpose !== undefined || parsed.scope !== undefined || parsed.stakeholders !== undefined || parsed.constraints !== undefined) {
+  if (parsed.name || parsed.purpose !== undefined || parsed.constraints !== undefined) {
     const overviewNodes = await db
       .select()
       .from(schema.nodes)
@@ -112,8 +110,6 @@ app.patch("/:id", async (c) => {
       const existingContent = overview.content || "";
       const fields = {
         "目的・背景": parsed.purpose,
-        "スコープ": parsed.scope,
-        "ステークホルダー": parsed.stakeholders,
         "技術的制約": parsed.constraints,
       };
 

@@ -24,8 +24,6 @@ export function ProjectSetup({ onCancel }: { onCancel: () => void }) {
     defaultValues: {
       name: "",
       purpose: "",
-      scope: "",
-      stakeholders: "",
       constraints: "",
       node_instructions: {},
     },

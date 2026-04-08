@@ -524,17 +524,13 @@ server.registerTool(
     inputSchema: {
       name: z.string().describe("システム名・プロジェクト名"),
       purpose: z.string().describe("目的・背景"),
-      scope: z.string().optional().describe("スコープ（任意）"),
-      stakeholders: z.string().optional().describe("ステークホルダー（任意）"),
       constraints: z.string().optional().describe("技術的制約（任意）"),
     },
   },
-  safeHandler(async ({ name, purpose, scope, stakeholders, constraints }) => {
+  safeHandler(async ({ name, purpose, constraints }) => {
     const project = await apiClient.createProject({
       name,
       purpose,
-      scope: scope || "",
-      stakeholders: stakeholders || "",
       constraints: constraints || "",
     });
     return {

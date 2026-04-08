@@ -104,8 +104,6 @@ export const NodeInstructionsSchema = z.record(
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(100),
   purpose: z.string().min(1),
-  scope: z.string().optional(),
-  stakeholders: z.string().optional(),
   constraints: z.string().optional(),
   node_instructions: NodeInstructionsSchema,
 });
@@ -113,8 +111,6 @@ export const CreateProjectSchema = z.object({
 export const UpdateProjectSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   purpose: z.string().optional(),
-  scope: z.string().optional(),
-  stakeholders: z.string().optional(),
   constraints: z.string().optional(),
   node_instructions: NodeInstructionsSchema,
 });

@@ -47,8 +47,6 @@ export function ProjectSettings({ project, onClose }: Props) {
     defaultValues: {
       name: "",
       purpose: "",
-      scope: "",
-      stakeholders: "",
       constraints: "",
       node_instructions: {},
     },
@@ -62,8 +60,6 @@ export function ProjectSettings({ project, onClose }: Props) {
       reset({
         name: project.name,
         purpose: fields["目的・背景"] || "",
-        scope: fields["スコープ"] || "",
-        stakeholders: fields["ステークホルダー"] || "",
         constraints: fields["技術的制約"] || "",
         node_instructions: project.node_instructions || {},
       });

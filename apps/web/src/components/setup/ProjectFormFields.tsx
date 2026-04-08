@@ -8,8 +8,6 @@ const NODE_INSTRUCTION_TYPES = ["need", "feature", "spec"] as const;
 export interface ProjectFormValues {
   name: string;
   purpose: string;
-  scope: string;
-  stakeholders: string;
   constraints: string;
   node_instructions: Record<string, string>;
 }
@@ -59,27 +57,6 @@ export function ProjectFormFields({
         {errors.purpose && (
           <p className="text-red-500 text-sm mt-1">{errors.purpose.message}</p>
         )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          スコープ{isCreate && "（任意）"}
-        </label>
-        <textarea
-          {...register("scope")}
-          rows={2}
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          ステークホルダー{isCreate && "（任意）"}
-        </label>
-        <input
-          {...register("stakeholders")}
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-        />
       </div>
 
       <div>

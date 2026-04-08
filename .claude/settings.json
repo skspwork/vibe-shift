@@ -2,13 +2,11 @@
   "permissions": {
     "allow": [
       "mcp__vibeshift__update_node",
-      "mcp__vibeshift__get_project_graph",
       "mcp__vibeshift__search_nodes",
       "mcp__vibeshift__list_edges",
       "mcp__vibeshift__delete_edge",
       "mcp__vibeshift__link_nodes",
       "mcp__vibeshift__check_impact",
-      "mcp__vibeshift__get_node_context",
       "mcp__vibeshift__create_changelog",
       "mcp__vibeshift__list_projects",
       "mcp__vibeshift__create_node",

@@ -38,7 +38,7 @@ export const useAppStore = create<AppState>((set) => ({
   panToNodeId: null,
   setPanToNodeId: (id) => set({ panToNodeId: id }),
 
-  graphColumns: loadNumber("vibeshift:graphColumns", 2),
+  graphColumns: loadNumber("vibeshift:graphColumns", 3),
   setGraphColumns: (n) => {
     const v = Math.max(1, Math.min(10, n));
     localStorage.setItem("vibeshift:graphColumns", String(v));

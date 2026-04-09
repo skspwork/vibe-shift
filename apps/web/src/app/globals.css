@@ -1,2 +1,72 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: var(--font-inter), var(--font-noto-sans-jp), "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+@layer base {
+  :root {
+    /* Background */
+    --bg-base: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-muted: #f1f5f9;
+    --bg-accent: #eff6ff;
+
+    /* Text */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-inverse: #ffffff;
+
+    /* Border */
+    --border-default: #e2e8f0;
+    --border-hover: #cbd5e1;
+    --border-active: #3b82f6;
+
+    /* Brand */
+    --brand-primary: #3b82f6;
+    --brand-primary-hover: #2563eb;
+
+    /* Node colors */
+    --node-overview-bg: #2E4057;
+    --node-overview-border: #1a2a3a;
+    --node-overview-text: #ffffff;
+
+    --node-need-bg: #E6F1FB;
+    --node-need-border: #378ADD;
+    --node-need-text: #1a3a5c;
+
+    --node-feature-bg: #E1F5EE;
+    --node-feature-border: #1D9E75;
+    --node-feature-text: #0d4a36;
+
+    --node-spec-bg: #EEEDFE;
+    --node-spec-border: #7F77DD;
+    --node-spec-text: #3a356a;
+
+    /* Danger */
+    --danger: #ef4444;
+    --danger-hover: #dc2626;
+    --danger-bg: #fef2f2;
+    --danger-text: #991b1b;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    letter-spacing: 0.02em;
+    line-height: 1.8;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+}

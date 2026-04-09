@@ -61,27 +61,30 @@ export default function ProjectPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      <header className="h-12 border-b bg-white flex items-center px-4 shrink-0">
-        <a href="/" className="font-bold text-lg mr-4">
-          VibeShift
+      <header className="h-12 border-b border-[var(--border-default)] bg-[var(--bg-surface)] flex items-center px-5 shrink-0">
+        <a href="/" className="font-bold text-base tracking-tight mr-1">
+          Vibe<span className="text-[var(--brand-primary)]">Shift</span>
         </a>
         {project && (
           <>
-            <span className="text-gray-500">{project.name}</span>
-            <button
-              onClick={() => api.exportProject(projectId)}
-              className="ml-2 text-gray-400 hover:text-gray-600 transition"
-              title="HTMLエクスポート"
-            >
-              <Download size={16} />
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="ml-2 text-gray-400 hover:text-gray-600 transition"
-              title="プロジェクト設定"
-            >
-              <Settings size={16} />
-            </button>
+            <span className="text-[var(--text-muted)] mx-2">/</span>
+            <span className="text-[var(--text-secondary)] text-sm font-medium">{project.name}</span>
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => api.exportProject(projectId)}
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors"
+                title="HTMLエクスポート"
+              >
+                <Download size={15} />
+              </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors"
+                title="プロジェクト設定"
+              >
+                <Settings size={15} />
+              </button>
+            </div>
           </>
         )}
       </header>
@@ -101,10 +104,10 @@ export default function ProjectPage() {
         </div>
 
         <div
-          className="w-2 hover:bg-blue-400 bg-gray-200 cursor-col-resize shrink-0 transition-colors"
+          className="w-1.5 hover:bg-[var(--brand-primary)] bg-[var(--border-default)] cursor-col-resize shrink-0 transition-colors duration-150"
           onMouseDown={startResize}
         />
-        <div className="border-l bg-white overflow-y-auto shrink-0" style={{ width: panelWidth }}>
+        <div className="border-l border-[var(--border-default)] bg-[var(--bg-surface)] overflow-y-auto shrink-0" style={{ width: panelWidth }}>
           {selectedNodeId ? (
             <NodeDetail
               nodeId={selectedNodeId}
@@ -112,7 +115,7 @@ export default function ProjectPage() {
               onUpdate={refetchGraph}
             />
           ) : (
-            <div className="p-4 text-gray-400 text-sm">
+            <div className="p-6 text-[var(--text-muted)] text-sm flex items-center justify-center h-full">
               ノードをクリックして詳細を表示
             </div>
           )}

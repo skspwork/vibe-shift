@@ -31,7 +31,7 @@ function MermaidBlock({ code }: { code: string }) {
     };
   }, [code, id]);
 
-  return <div ref={ref} className="my-2 flex justify-center" />;
+  return <div ref={ref} className="my-3 flex justify-center" />;
 }
 
 interface Props {
@@ -42,13 +42,18 @@ interface Props {
 export function Markdown({ children, className = "" }: Props) {
   return (
     <div
-      className={`prose prose-sm prose-gray max-w-none
-        prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1
-        prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0
-        prose-pre:bg-gray-100 prose-pre:text-gray-800 prose-pre:text-xs prose-pre:rounded prose-pre:overflow-x-auto
-        prose-code:text-xs prose-code:bg-gray-100 prose-code:px-1 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
-        prose-table:border-collapse prose-th:border prose-th:border-gray-300 prose-th:px-2 prose-th:py-1 prose-th:bg-gray-50
-        prose-td:border prose-td:border-gray-300 prose-td:px-2 prose-td:py-1
+      className={`prose prose-sm max-w-none
+        prose-headings:font-bold prose-headings:tracking-tight prose-headings:mt-4 prose-headings:mb-1.5
+        prose-h3:text-sm prose-h4:text-xs
+        prose-p:my-1.5 prose-p:leading-relaxed
+        prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5
+        prose-strong:font-semibold
+        prose-pre:bg-[var(--bg-muted)] prose-pre:text-[var(--text-primary)] prose-pre:text-xs prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:border prose-pre:border-[var(--border-default)]
+        prose-code:text-xs prose-code:font-mono prose-code:bg-[var(--bg-muted)] prose-code:text-[var(--text-secondary)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
+        prose-table:border-collapse prose-table:text-xs
+        prose-th:border prose-th:border-[var(--border-default)] prose-th:px-2.5 prose-th:py-1.5 prose-th:bg-[var(--bg-muted)] prose-th:font-semibold prose-th:text-left
+        prose-td:border prose-td:border-[var(--border-default)] prose-td:px-2.5 prose-td:py-1.5
+        prose-a:text-[var(--brand-primary)] prose-a:no-underline hover:prose-a:underline
         ${className}`}
     >
       <ReactMarkdown

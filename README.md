@@ -70,6 +70,10 @@ VibeShiftのMCPサーバーをAIエージェントに接続すると、対話を
 }
 ```
 
+### Claude Desktop の場合
+
+`claude_desktop_config.json` に同様の設定を追加してください。
+
 ### その他のMCP対応AIエージェント
 
 stdio方式でMCPサーバーに接続できるエージェントであれば利用可能です。起動コマンドは `npx tsx packages/mcp-server/src/index.ts` です。

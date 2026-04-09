@@ -37,20 +37,4 @@ export const api = {
     params.set("include_path", "true");
     return request<any[]>(`/nodes/search?${params}`);
   },
-
-  // Export
-  exportProject: async (projectId: string) => {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/export`);
-    if (!res.ok) throw new Error("Export failed");
-    const blob = await res.blob();
-    const disposition = res.headers.get("Content-Disposition") || "";
-    const match = disposition.match(/filename\*=UTF-8''(.+)/);
-    const filename = match ? decodeURIComponent(match[1]) : "export.html";
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  },
 };

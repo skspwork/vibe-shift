@@ -8,7 +8,7 @@ import { ViewToolbar } from "@/components/graph/ViewToolbar";
 import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ProjectSettings } from "@/components/setup/ProjectSettings";
 import { useAppStore } from "@/lib/store";
-import { Settings, Download } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 
 export default function ProjectPage() {
@@ -70,13 +70,6 @@ export default function ProjectPage() {
             <span className="text-[var(--text-muted)] mx-2">/</span>
             <span className="text-[var(--text-secondary)] text-sm font-medium">{project.name}</span>
             <div className="ml-auto flex items-center gap-1">
-              <button
-                onClick={() => api.exportProject(projectId)}
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors"
-                title="HTMLエクスポート"
-              >
-                <Download size={15} />
-              </button>
               <button
                 onClick={() => setShowSettings(true)}
                 className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] transition-colors"

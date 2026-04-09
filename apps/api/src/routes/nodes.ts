@@ -115,6 +115,18 @@ app.post("/", async (c) => {
     }, 400);
   }
 
+  // Duplicate check: same parent, same type, same title
+  const existingSiblings = rawDb.prepare(
+    `SELECT n.id FROM nodes n
+     JOIN edges e ON e.to_node_id = n.id AND e.link_type = 'derives'
+     WHERE e.from_node_id = ? AND n.type = ? AND n.title = ? AND n.disabled_at IS NULL`
+  ).all(parsed.parent_id, parsed.type, parsed.title) as any[];
+  if (existingSiblings.length > 0) {
+    return c.json({
+      error: `同じ親ノードの下に同名の${NODE_LABELS[parsed.type] || parsed.type}「${parsed.title}」が既に存在します (id: ${existingSiblings[0].id})`,
+    }, 409);
+  }
+
   await db.insert(schema.nodes).values({
     id: nodeId,
     project_id: parsed.project_id,

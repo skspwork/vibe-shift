@@ -20,6 +20,19 @@ app.post("/", async (c) => {
   const body = await c.req.json();
   const parsed = CreateProjectSchema.parse(body);
   const now = new Date().toISOString();
+
+  // Duplicate name check
+  const [existing] = await db
+    .select()
+    .from(schema.projects)
+    .where(eq(schema.projects.name, parsed.name));
+  if (existing) {
+    return c.json(
+      { error: `同名のプロジェクト「${parsed.name}」が既に存在します (id: ${existing.id})` },
+      409
+    );
+  }
+
   const projectId = uuid();
 
   // Create project

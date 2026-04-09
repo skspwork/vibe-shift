@@ -64,11 +64,13 @@ VibeShiftのMCPサーバーをAIエージェントに接続すると、対話を
   "mcpServers": {
     "vibeshift": {
       "command": "npx",
-      "args": ["tsx", "packages/mcp-server/src/index.ts"]
+      "args": ["tsx", "/path/to/vibe-shift/packages/mcp-server/src/index.ts"]
     }
   }
 }
 ```
+
+`/path/to/vibe-shift/` はVibeShiftをクローンした場所の絶対パスに置き換えてください。
 
 ### Claude Desktop の場合
 
@@ -76,7 +78,7 @@ VibeShiftのMCPサーバーをAIエージェントに接続すると、対話を
 
 ### その他のMCP対応AIエージェント
 
-stdio方式でMCPサーバーに接続できるエージェントであれば利用可能です。起動コマンドは `npx tsx packages/mcp-server/src/index.ts` です。
+stdio方式でMCPサーバーに接続できるエージェントであれば利用可能です。起動コマンドは `npx tsx /path/to/vibe-shift/packages/mcp-server/src/index.ts` です。
 
 ## 使い方
 

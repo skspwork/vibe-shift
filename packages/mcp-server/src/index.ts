@@ -4,7 +4,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { apiClient } from "./client.js";
-import { getChildTypeMap, getAllowedChildTypeMap, GUIDANCE_TEXT, DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
 
 const server = new McpServer({
   name: "VibeShift",

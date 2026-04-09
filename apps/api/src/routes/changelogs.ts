@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { v4 as uuid } from "uuid";
-import { eq } from "drizzle-orm";
 import { db, schema } from "../db/index.js";
 
 const app = new Hono();
@@ -20,25 +19,6 @@ app.post("/", async (c) => {
   });
 
   return c.json({ id, project_id, title, created_at: now }, 201);
-});
-
-app.get("/:id", async (c) => {
-  const id = c.req.param("id");
-  const [changelog] = await db
-    .select()
-    .from(schema.changelogs)
-    .where(eq(schema.changelogs.id, id));
-  if (!changelog) return c.json({ error: "Not found" }, 404);
-
-  const reasons = await db
-    .select()
-    .from(schema.changelog_reasons)
-    .where(eq(schema.changelog_reasons.changelog_id, id));
-
-  return c.json({
-    changelog,
-    reasons: reasons.map((r) => ({ role: r.role, content: r.content })),
-  });
 });
 
 app.post("/:id/reasons", async (c) => {

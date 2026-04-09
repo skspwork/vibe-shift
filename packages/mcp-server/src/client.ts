@@ -15,7 +15,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const apiClient = {
   // Projects
   getProjects: () => request<any[]>("/projects"),
-  getProject: (id: string) => request<any>(`/projects/${id}`),
   createProject: (data: any) =>
     request<any>("/projects", { method: "POST", body: JSON.stringify(data) }),
   updateProject: (id: string, data: any) =>
@@ -48,11 +47,9 @@ export const apiClient = {
     return request<any[]>(`/nodes/search?${params}`);
   },
 
-  // Node context & trace
-  getNodeContext: (id: string) => request<any>(`/nodes/${id}/context`),
+  // Node trace
   getNodeTrace: (id: string, direction = "both") =>
     request<any>(`/nodes/${id}/trace?direction=${direction}`),
-  getNodeChangelogs: (id: string) => request<any>(`/nodes/${id}/changelogs`),
 
   // Changelogs
   createChangelog: (data: { project_id: string; title: string }) =>

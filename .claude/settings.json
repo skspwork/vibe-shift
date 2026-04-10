@@ -11,7 +11,8 @@
       "mcp__vibeshift__list_projects",
       "mcp__vibeshift__create_node",
       "mcp__vibeshift__consult_context",
-      "mcp__vibeshift__delete_node"
+      "mcp__vibeshift__delete_node",
+      "mcp__vibeshift__create_project"
     ]
   },
   "hooks": {

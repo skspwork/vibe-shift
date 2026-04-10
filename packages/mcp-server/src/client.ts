@@ -14,6 +14,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const apiClient = {
   // Projects
+  getProject: (id: string) => request<any>(`/projects/${id}`),
   getProjects: () => request<any[]>("/projects"),
   createProject: (data: any) =>
     request<any>("/projects", { method: "POST", body: JSON.stringify(data) }),

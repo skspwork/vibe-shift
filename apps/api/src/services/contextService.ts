@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, rawDb, schema } from "../db/index.js";
-import { NODE_LABELS } from "@vibeshift/shared";
+import { NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
 
 export async function getNodeContext(nodeId: string): Promise<string> {
   const allNodes = rawDb.prepare("SELECT * FROM nodes WHERE disabled_at IS NULL").all() as any[];
@@ -69,6 +69,9 @@ export async function getProjectContext(projectId: string): Promise<string> {
   const allNodes = rawDb.prepare("SELECT * FROM nodes WHERE project_id = ? AND disabled_at IS NULL").all(projectId) as any[];
   const allEdges = await db.select().from(schema.edges);
 
+  // Fetch project for node_instructions
+  const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId));
+
   // Filter edges to only those within this project's nodes
   const nodeIds = new Set(allNodes.map((n) => n.id));
   const projectEdges = allEdges.filter(
@@ -90,6 +93,22 @@ export async function getProjectContext(projectId: string): Promise<string> {
   let context = "";
   if (overviewNode) {
     context += `[プロジェクト概要]\n  名前: ${overviewNode.title}\n  内容: ${overviewNode.content}\n\n`;
+  }
+
+  // Include node_instructions (fall back to defaults)
+  const projectInstructions = project?.node_instructions
+    ? JSON.parse(project.node_instructions)
+    : {};
+  const mergedInstructions = { ...DEFAULT_NODE_INSTRUCTIONS, ...projectInstructions };
+  // Remove entries with empty string (explicitly cleared)
+  const entries = Object.entries(mergedInstructions).filter(([, rule]) => rule);
+  if (entries.length > 0) {
+    context += `[ノード記述ルール]\n`;
+    for (const [nodeType, rule] of entries) {
+      const label = NODE_LABELS[nodeType] || nodeType;
+      context += `  ${label}（${nodeType}）: ${rule}\n`;
+    }
+    context += `\n`;
   }
 
   // Build tree recursively

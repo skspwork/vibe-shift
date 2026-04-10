@@ -3,6 +3,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
 import { apiClient } from "./client.js";
 
 const server = new McpServer({
@@ -58,6 +59,30 @@ server.registerTool(
   })
 );
 
+// ─── Helper: get node_instructions reminder ───
+async function getNodeInstructionReminder(projectId: string, nodeType: string): Promise<string> {
+  try {
+    const project = await apiClient.getProject(projectId);
+    let rule: string | undefined;
+    if (project.node_instructions) {
+      const instructions = typeof project.node_instructions === "string"
+        ? JSON.parse(project.node_instructions)
+        : project.node_instructions;
+      rule = instructions[nodeType];
+    }
+    // Fall back to default if no project-specific rule
+    if (!rule) {
+      rule = DEFAULT_NODE_INSTRUCTIONS[nodeType];
+    }
+    if (rule) {
+      return `\n\n【記述ルール（${nodeType}）】\n${rule}`;
+    }
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
 // ─── Tool 2: create_node ───
 server.registerTool(
   "create_node",
@@ -102,8 +127,9 @@ server.registerTool(
       created_by: "ai",
       requirement_category: type === "need" ? (requirement_category || "functional") : undefined,
     });
+    const reminder = await getNodeInstructionReminder(project_id, type);
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) }],
+      content: [{ type: "text" as const, text: JSON.stringify(node, null, 2) + reminder }],
     };
   })
 );
@@ -144,8 +170,9 @@ server.registerTool(
     updates.changelog_purpose = "更新";
 
     const updated = await apiClient.updateNode(node_id, updates);
+    const reminder = await getNodeInstructionReminder(node.project_id, node.type);
     return {
-      content: [{ type: "text" as const, text: JSON.stringify(updated, null, 2) }],
+      content: [{ type: "text" as const, text: JSON.stringify(updated, null, 2) + reminder }],
     };
   })
 );
@@ -546,7 +573,7 @@ server.registerTool(
   "update_project",
   {
     description:
-      "プロジェクト設定を更新する。目的・技術的制約・ノード種別ごとのAI記述ルールを変更できる。overviewノードのcontentも自動更新される。",
+      "プロジェクト設定を更新する。目的・技術的制約・ノード種別ごとのAI記述ルールを変更できる。overviewノードのcontentも自動更新される。node_instructionsにnullを指定するとデフォルトの記述ルールに戻る。",
     annotations: {
       title: "プロジェクト設定更新",
       destructiveHint: false,
@@ -562,7 +589,7 @@ server.registerTool(
       node_instructions: z.record(
         z.enum(["need", "feature", "spec"]),
         z.string()
-      ).optional().describe("ノード種別ごとのAI記述ルール（例: { need: '...', feature: '...', spec: '...' }）"),
+      ).nullable().optional().describe("ノード種別ごとのAI記述ルール（例: { need: '...', feature: '...', spec: '...' }）。nullを指定するとデフォルトルールに戻る"),
     },
   },
   safeHandler(async ({ project_id, name, purpose, constraints, node_instructions }) => {

@@ -99,7 +99,7 @@ export const DEFAULT_NODE_INSTRUCTIONS: Record<string, string> = {
 export const NodeInstructionsSchema = z.record(
   z.enum(["need", "feature", "spec"]),
   z.string()
-).optional();
+).nullable().optional();
 
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(100),

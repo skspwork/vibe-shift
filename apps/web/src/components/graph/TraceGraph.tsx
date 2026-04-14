@@ -351,6 +351,7 @@ function TraceGraphInner({ nodes: rawNodes, edges: rawEdges }: Omit<Props, "proj
         defaultViewport={savedViewport}
         fitView={!savedViewport}
         fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.1}
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
       >

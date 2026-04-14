@@ -1,20 +1,44 @@
 {
   "name": "vibeshift",
+  "version": "0.1.0",
   "description": "AI-driven requirements traceability management system",
   "license": "MIT",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "https://github.com/skspwork/vibe-shift.git"
   },
-  "private": true,
-  "packageManager": "pnpm@9.5.0",
+  "bin": {
+    "vibeshift": "./dist/bin.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "build:package": "bash scripts/build-package.sh",
+    "install:package": "npm run build:package && npm pack && npm install -g vibeshift-0.1.0.tgz",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "db:generate": "pnpm --filter @vibeshift/api db:generate",
-    "db:migrate": "pnpm --filter @vibeshift/api db:migrate"
+    "db:generate": "npm run db:generate -w @vibeshift/api",
+    "db:migrate": "npm run db:migrate -w @vibeshift/api"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^4.6.0",
+    "marked": "^17.0.5",
+    "uuid": "^11.0.0",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "turbo": "^2.8.20"

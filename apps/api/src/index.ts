@@ -7,25 +7,19 @@ import nodes from "./routes/nodes.js";
 import edges from "./routes/edges.js";
 import graph from "./routes/graph.js";
 import changelogs from "./routes/changelogs.js";
-import { db, schema } from "./db/index.js";
-import { sql } from "drizzle-orm";
-import Database from "better-sqlite3";
-import { resolve } from "path";
+import { db, rawDb, schema } from "./db/index.js";
 import { v4 as uuidv4 } from "uuid";
 
-// Run migrations inline for dev
+// Run migrations inline
 function initDb() {
-  const dbPath = resolve(process.cwd(), "vibeshift.db");
-  const sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
+  const sqlite = rawDb;
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       active_lanes TEXT NOT NULL,
-      methodology TEXT NOT NULL DEFAULT 'strict',
+      node_instructions TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -42,8 +36,9 @@ function initDb() {
       type TEXT NOT NULL,
       title TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
-      rationale_note TEXT,
+      url TEXT,
       changelog_id TEXT REFERENCES changelogs(id),
+      requirement_category TEXT,
       created_by TEXT NOT NULL DEFAULT 'user',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -82,12 +77,14 @@ function initDb() {
     );
   `);
 
-  // Add disabled_at column if not exists (for existing DBs)
-  try {
-    sqlite.exec("ALTER TABLE nodes ADD COLUMN disabled_at TEXT");
-  } catch {
-    // Column already exists
-  }
+  // Add columns if not exists (for existing DBs)
+  const addColumnIfMissing = (table: string, column: string, type: string) => {
+    try { sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`); } catch { /* already exists */ }
+  };
+  addColumnIfMissing("nodes", "disabled_at", "TEXT");
+  addColumnIfMissing("nodes", "url", "TEXT");
+  addColumnIfMissing("nodes", "requirement_category", "TEXT");
+  addColumnIfMissing("projects", "node_instructions", "TEXT");
 
   // ─── Migrate old table names to new names ───
   try {
@@ -107,20 +104,6 @@ function initDb() {
     sqlite.exec("ALTER TABLE nodes RENAME COLUMN conversation_id TO changelog_id");
   } catch {
     // Column already renamed
-  }
-
-  // Add requirement_category column if not exists
-  try {
-    sqlite.exec("ALTER TABLE nodes ADD COLUMN requirement_category TEXT");
-  } catch {
-    // Column already exists
-  }
-
-  // Add node_instructions column to projects if not exists
-  try {
-    sqlite.exec("ALTER TABLE projects ADD COLUMN node_instructions TEXT");
-  } catch {
-    // Column already exists
   }
 
   // Migrate existing nodes.changelog_id → node_changelogs
@@ -146,8 +129,6 @@ function initDb() {
     sqlite.exec("DELETE FROM nodes_fts");
     sqlite.exec("INSERT INTO nodes_fts(node_id, title, content) SELECT id, title, content FROM nodes");
   }
-
-  sqlite.close();
 }
 
 initDb();

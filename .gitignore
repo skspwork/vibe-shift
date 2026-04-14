@@ -9,6 +9,7 @@ dist/
 *.sqlite
 .env
 .env.local
+*.tgz
 next-env.d.ts
 .mcp.json
 .claude/settings.local.json

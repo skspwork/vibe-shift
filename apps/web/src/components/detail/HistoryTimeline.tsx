@@ -72,16 +72,21 @@ function TimelineEntry({ entry, isLast }: { entry: ChangelogEntry; isLast: boole
             {entry.purpose}
           </span>
         </div>
-        <p
-          ref={textRef}
-          className={`text-xs text-gray-600 mt-0.5 leading-relaxed whitespace-pre-wrap ${
-            !expanded ? "line-clamp-3" : ""
-          }`}
-        >
-          {entry.reason}
+        <p className="text-xs font-medium text-gray-700 mt-0.5">
+          {entry.changelog.title}
         </p>
+        {entry.reason !== entry.changelog.title && (
+          <p
+            ref={textRef}
+            className={`text-xs text-gray-500 mt-0.5 leading-relaxed whitespace-pre-wrap ${
+              !expanded ? "line-clamp-3" : ""
+            }`}
+          >
+            {entry.reason}
+          </p>
+        )}
 
-        {clamped && (
+        {clamped && entry.reason !== entry.changelog.title && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-0.5 text-blue-500 text-[11px] mt-0.5 hover:underline"

@@ -26,6 +26,33 @@ function safeHandler<T>(fn: (args: T) => Promise<{ content: { type: "text"; text
   };
 }
 
+// ─── Reason quality validation ───
+const VAGUE_REASONS = new Set([
+  "更新", "変更", "修正", "削除", "追加", "対応", "調整",
+  "update", "change", "fix", "delete", "add", "modify",
+]);
+
+function validateReason(reason: string): void {
+  const trimmed = reason.trim();
+  if (trimmed.length < 10) {
+    throw new Error(
+      `理由が短すぎます（${trimmed.length}文字）。` +
+      `具体的な変更理由を10文字以上で記述してください。\n` +
+      `ユーザーに「なぜこの変更が必要か」を確認してから再度実行してください。`
+    );
+  }
+  const normalized = trimmed.replace(/[。.、,\s]+$/g, "").toLowerCase();
+  if (VAGUE_REASONS.has(normalized)) {
+    throw new Error(
+      `理由「${trimmed}」は曖昧すぎます。\n` +
+      `ユーザーに以下を確認してください:\n` +
+      `- なぜこの変更が必要ですか？（背景・きっかけ）\n` +
+      `- どのような問題を解決しますか？\n` +
+      `具体的な理由を取得してから再度実行してください。`
+    );
+  }
+}
+
 // ─── Tool 1: create_changelog ───
 server.registerTool(
   "create_changelog",
@@ -42,10 +69,11 @@ server.registerTool(
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
       summary: z.string().describe("何を変更したかの要約（タイトルになる）"),
-      reason: z.string().describe("変更理由（なぜこの変更が必要か）"),
+      reason: z.string().describe("変更理由（なぜこの変更が必要か。背景・動機を10文字以上で記述。「更新」「修正」等の一語は不可）"),
     },
   },
   safeHandler(async ({ project_id, summary, reason }) => {
+    validateReason(reason);
     const changelog = await apiClient.createChangelog({
       project_id,
       title: summary,
@@ -150,16 +178,18 @@ server.registerTool(
       node_id: z.string().uuid().describe("更新対象のノードID"),
       title: z.string().optional().describe("新しいタイトル"),
       content: z.string().optional().describe("新しい内容（マークダウン形式）"),
-      reason: z.string().describe("変更理由（何を変更したか＋なぜこの変更が必要か）"),
+      summary: z.string().describe("変更内容（何をどう変更したかの事実記述）"),
+      reason: z.string().describe("変更理由（なぜこの変更が必要か。背景・動機を10文字以上で記述。「更新」「修正」等の一語は不可）"),
     },
   },
-  safeHandler(async ({ node_id, title, content, reason }) => {
+  safeHandler(async ({ node_id, title, content, summary, reason }) => {
+    validateReason(reason);
     const node = await apiClient.getNode(node_id);
 
     // 変更履歴を自動作成し、reasonを記録
     const cl = await apiClient.createChangelog({
       project_id: node.project_id,
-      title: `更新: ${node.title}`,
+      title: summary,
     });
     await apiClient.addChangelogReason(cl.id, "assistant", reason);
 
@@ -192,14 +222,16 @@ server.registerTool(
     },
     inputSchema: {
       node_id: z.string().uuid().describe("非活性化対象のノードID"),
-      reason: z.string().describe("非活性化の理由（何を非活性化するか＋なぜ不要になったか）"),
+      summary: z.string().describe("変更内容（何を非活性化するか、その内容の要約）"),
+      reason: z.string().describe("変更理由（なぜ不要になったか。背景・動機を10文字以上で記述）"),
     },
   },
-  safeHandler(async ({ node_id, reason }) => {
+  safeHandler(async ({ node_id, summary, reason }) => {
+    validateReason(reason);
     const node = await apiClient.getNode(node_id);
     const cl = await apiClient.createChangelog({
       project_id: node.project_id,
-      title: `非活性化: ${node.title}`,
+      title: summary,
     });
     await apiClient.addChangelogReason(cl.id, "assistant", reason);
     await apiClient.updateNode(node_id, { changelog_id: cl.id, changelog_purpose: "非活性化" });
@@ -226,10 +258,12 @@ server.registerTool(
     },
     inputSchema: {
       node_id: z.string().uuid().describe("活性化対象のノードID"),
-      reason: z.string().describe("活性化の理由（何を活性化するか＋なぜ再度必要になったか）"),
+      summary: z.string().describe("変更内容（何を活性化するか、その内容の要約）"),
+      reason: z.string().describe("変更理由（なぜ再度必要になったか。背景・動機を10文字以上で記述）"),
     },
   },
-  safeHandler(async ({ node_id, reason }) => {
+  safeHandler(async ({ node_id, summary, reason }) => {
+    validateReason(reason);
     // Enable first (node is disabled, so getNode would 404)
     const result = await apiClient.enableNode(node_id);
 
@@ -237,7 +271,7 @@ server.registerTool(
     const node = await apiClient.getNode(node_id);
     const cl = await apiClient.createChangelog({
       project_id: node.project_id,
-      title: `活性化: ${node.title}`,
+      title: summary,
     });
     await apiClient.addChangelogReason(cl.id, "assistant", reason);
     await apiClient.updateNode(node_id, { changelog_id: cl.id, changelog_purpose: "活性化" });

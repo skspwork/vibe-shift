@@ -21,7 +21,7 @@ export default function Home() {
             Vibe<span className="text-[var(--brand-primary)]">Shift</span>
           </h1>
           <p className="text-[var(--text-secondary)] text-base leading-relaxed">
-            AIドリブン開発のためのトレーサビリティ管理
+            つくる速さはそのまま、壊れない開発へ
           </p>
         </div>
 

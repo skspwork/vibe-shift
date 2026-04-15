@@ -16,8 +16,8 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "VibeShift - AIドリブン開発トレーサビリティ管理",
-  description: "AIとの会話を起点として、要求・要件・仕様・設計・実装までのトレーサビリティをグラフィカルに管理",
+  title: "VibeShift - つくる速さはそのまま、壊れない開発へ",
+  description: "バイブコーディングを運営できる開発に。要求・要件・仕様のトレーサビリティをグラフィカルに管理",
 };
 
 export default function RootLayout({

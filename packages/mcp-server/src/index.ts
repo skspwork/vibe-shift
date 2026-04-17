@@ -571,7 +571,7 @@ server.registerTool(
   "create_project",
   {
     description:
-      "VibeShiftに新しいプロジェクトを作成する。overviewノードも自動生成される。返却されるproject_idとoverview_idを後続のノード作成に使用すること。",
+      "VibeShiftに新しいプロジェクトを作成する。overviewノードも自動生成される。返却されるproject_idとoverview_idを後続のノード作成に使用すること。技術的制約はプロジェクト作成後に requirement_category: non_functional の need ノードとして別途作成すること。",
     annotations: {
       title: "プロジェクト作成",
       destructiveHint: false,
@@ -582,21 +582,20 @@ server.registerTool(
     inputSchema: {
       name: z.string().describe("システム名・プロジェクト名"),
       purpose: z.string().describe("目的・背景"),
-      constraints: z.string().optional().describe("技術的制約（任意）"),
     },
   },
-  safeHandler(async ({ name, purpose, constraints }) => {
+  safeHandler(async ({ name, purpose }) => {
     const project = await apiClient.createProject({
       name,
       purpose,
-      constraints: constraints || "",
     });
     return {
       content: [{
         type: "text" as const,
         text: `プロジェクトを作成しました。\n\n${JSON.stringify(project, null, 2)}\n\n` +
           `project_id: ${project.id}\noverview_id: ${project.overview_id}\n` +
-          `needノード作成時のparent_idには overview_id を使用してください。`,
+          `needノード作成時のparent_idには overview_id を使用してください。\n` +
+          `技術的制約がある場合は requirement_category: "non_functional" の need ノードとして作成してください。`,
       }],
     };
   })
@@ -607,7 +606,7 @@ server.registerTool(
   "update_project",
   {
     description:
-      "プロジェクト設定を更新する。目的・技術的制約・ノード種別ごとのAI記述ルールを変更できる。overviewノードのcontentも自動更新される。node_instructionsにnullを指定するとデフォルトの記述ルールに戻る。",
+      "プロジェクト設定を更新する。プロジェクト名・AI記述ルールを変更できる。node_instructionsにnullを指定するとデフォルトの記述ルールに戻る。overviewノードの内容変更はupdate_nodeを使用すること。",
     annotations: {
       title: "プロジェクト設定更新",
       destructiveHint: false,
@@ -618,19 +617,15 @@ server.registerTool(
     inputSchema: {
       project_id: z.string().uuid().describe("プロジェクトID"),
       name: z.string().optional().describe("新しいプロジェクト名"),
-      purpose: z.string().optional().describe("新しい目的・背景"),
-      constraints: z.string().optional().describe("新しい技術的制約"),
       node_instructions: z.record(
         z.enum(["need", "feature", "spec"]),
         z.string()
       ).nullable().optional().describe("ノード種別ごとのAI記述ルール（例: { need: '...', feature: '...', spec: '...' }）。nullを指定するとデフォルトルールに戻る"),
     },
   },
-  safeHandler(async ({ project_id, name, purpose, constraints, node_instructions }) => {
+  safeHandler(async ({ project_id, name, node_instructions }) => {
     const updates: Record<string, any> = {};
     if (name !== undefined) updates.name = name;
-    if (purpose !== undefined) updates.purpose = purpose;
-    if (constraints !== undefined) updates.constraints = constraints;
     if (node_instructions !== undefined) updates.node_instructions = node_instructions;
 
     const updated = await apiClient.updateProject(project_id, updates);

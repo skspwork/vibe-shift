@@ -45,12 +45,7 @@ app.post("/", async (c) => {
   });
 
   // Create overview node
-  const overviewContent = [
-    `目的・背景: ${parsed.purpose}`,
-    parsed.constraints ? `技術的制約: ${parsed.constraints}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const overviewContent = `## 目的・背景\n${parsed.purpose}`;
 
   const overviewId = uuid();
   await db.insert(schema.nodes).values({
@@ -102,7 +97,7 @@ app.patch("/:id", async (c) => {
   }
 
   // Update overview node content if project info fields changed
-  if (parsed.name || parsed.purpose !== undefined || parsed.constraints !== undefined) {
+  if (parsed.name) {
     const overviewNodes = await db
       .select()
       .from(schema.nodes)
@@ -113,39 +108,10 @@ app.patch("/:id", async (c) => {
         )
       );
     if (overviewNodes.length > 0) {
-      const overview = overviewNodes[0];
-      const nodeUpdates: Record<string, any> = {
-        updated_at: new Date().toISOString(),
-      };
-      if (parsed.name) nodeUpdates.title = parsed.name;
-
-      // Rebuild content from existing + new values
-      const existingContent = overview.content || "";
-      const fields = {
-        "目的・背景": parsed.purpose,
-        "技術的制約": parsed.constraints,
-      };
-
-      const lines = existingContent.split("\n");
-      for (const [label, newValue] of Object.entries(fields)) {
-        if (newValue === undefined) continue;
-        const idx = lines.findIndex((l: string) => l.startsWith(`${label}: `));
-        if (newValue) {
-          if (idx >= 0) {
-            lines[idx] = `${label}: ${newValue}`;
-          } else {
-            lines.push(`${label}: ${newValue}`);
-          }
-        } else if (idx >= 0) {
-          lines.splice(idx, 1);
-        }
-      }
-      nodeUpdates.content = lines.filter((l: string) => l.trim()).join("\n");
-
       await db
         .update(schema.nodes)
-        .set(nodeUpdates)
-        .where(eq(schema.nodes.id, overview.id));
+        .set({ title: parsed.name, updated_at: new Date().toISOString() })
+        .where(eq(schema.nodes.id, overviewNodes[0].id));
     }
   }
 

@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NODE_LABELS, DEFAULT_NODE_INSTRUCTIONS } from "@vibeshift/shared";
 
@@ -18,8 +18,6 @@ export function ProjectSettings({ project, onClose }: Props) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [fields, setFields] = useState<Record<string, string>>({});
-
   const deleteMutation = useMutation({
     mutationFn: () => api.deleteProject(project.id),
     onSuccess: () => {
@@ -28,21 +26,6 @@ export function ProjectSettings({ project, onClose }: Props) {
       router.push("/");
     },
   });
-
-  useEffect(() => {
-    if (!project) return;
-    api.getGraph(project.id).then((graph) => {
-      const overview = graph.nodes.find((n: any) => n.type === "overview");
-      if (overview?.content) {
-        const parsed: Record<string, string> = {};
-        for (const line of overview.content.split("\n")) {
-          const match = line.match(/^(.+?): (.+)$/);
-          if (match) parsed[match[1]] = match[2];
-        }
-        setFields(parsed);
-      }
-    });
-  }, [project]);
 
   const nodeInstructions = project.node_instructions || {};
 
@@ -57,21 +40,6 @@ export function ProjectSettings({ project, onClose }: Props) {
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">システム名</label>
-            <p className="text-sm text-[var(--text-primary)]">{project.name}</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">目的・背景</label>
-            <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{fields["目的・背景"] || "—"}</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">技術的制約</label>
-            <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{fields["技術的制約"] || "—"}</p>
-          </div>
-
           <div>
             <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">AI記述ルール</label>
             <div className="space-y-2">

@@ -104,15 +104,12 @@ export const NodeInstructionsSchema = z.record(
 export const CreateProjectSchema = z.object({
   name: z.string().min(1).max(100),
   purpose: z.string().min(1),
-  constraints: z.string().optional(),
   node_instructions: NodeInstructionsSchema,
   user_name: z.string().optional(),
 });
 
 export const UpdateProjectSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  purpose: z.string().optional(),
-  constraints: z.string().optional(),
   node_instructions: NodeInstructionsSchema,
 });
 

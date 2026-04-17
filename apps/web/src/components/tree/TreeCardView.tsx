@@ -156,6 +156,7 @@ function TreeCard({ treeNode, depth, matchedIds, collapsedIds, toggleCollapse }:
     >
       <div
         onClick={() => setSelectedNodeId(node.id)}
+        onDoubleClick={() => { if (hasChildren && !isFiltering) toggleCollapse(node.id); }}
         className={`
           rounded-lg border cursor-pointer transition-all duration-150
           ${isSection ? "p-4" : "p-3"}

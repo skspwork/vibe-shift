@@ -141,7 +141,7 @@ function TreeCard({ treeNode, depth, matchedIds, collapsedIds, toggleCollapse }:
   const setSelectedNodeId = useAppStore((s) => s.setSelectedNodeId);
 
   const isFiltering = matchedIds !== null;
-  const collapsed = !isFiltering && collapsedIds.has(node.id);
+  const collapsed = !isFiltering && (collapsedIds?.has(node.id) ?? true);
   const isSelected = selectedNodeId === node.id;
   const isDisabled = !!node.disabled_at;
   const isMatch = matchedIds?.has(node.id);
@@ -217,7 +217,7 @@ export function TreeCardView({ nodes, edges, projectId }: Props) {
   const searchQuery = useAppStore((s) => s.searchQuery);
   const collapseAll = useAppStore((s) => s.collapseAll);
   const expandAll = useAppStore((s) => s.expandAll);
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const [collapsedIds, setCollapsedIds] = useState<Set<string> | null>(null);
 
   const parentIds = useMemo(() => {
     const ids = new Set<string>();
@@ -228,16 +228,20 @@ export function TreeCardView({ nodes, edges, projectId }: Props) {
   }, [edges]);
 
   useEffect(() => {
+    if (collapsedIds === null) setCollapsedIds(new Set(parentIds));
+  }, [parentIds, collapsedIds]);
+
+  useEffect(() => {
     if (collapseAll > 0) setCollapsedIds(new Set(parentIds));
   }, [collapseAll, parentIds]);
 
   useEffect(() => {
-    if (expandAll > 0) setCollapsedIds(new Set());
+    if (expandAll > 0) setCollapsedIds(new Set<string>());
   }, [expandAll]);
 
   const toggleCollapse = (id: string) => {
     setCollapsedIds((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev ?? parentIds);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -303,7 +307,7 @@ export function TreeCardView({ nodes, edges, projectId }: Props) {
             treeNode={need}
             depth={0}
             matchedIds={matchedIds}
-            collapsedIds={collapsedIds}
+            collapsedIds={collapsedIds ?? parentIds}
             toggleCollapse={toggleCollapse}
           />
         ))}

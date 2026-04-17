@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { TraceGraph } from "@/components/graph/TraceGraph";
+import { TreeCardView } from "@/components/tree/TreeCardView";
 import { ViewToolbar } from "@/components/graph/ViewToolbar";
 import { NodeDetail } from "@/components/detail/NodeDetail";
 import { ProjectSettings } from "@/components/setup/ProjectSettings";
@@ -85,9 +85,9 @@ export default function ProjectPage() {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col">
           <ViewToolbar projectId={projectId} />
-          <div className="flex-1 relative">
+          <div className="flex-1 overflow-hidden">
             {graph ? (
-              <TraceGraph
+              <TreeCardView
                 nodes={graph.nodes}
                 edges={graph.edges}
                 projectId={projectId}

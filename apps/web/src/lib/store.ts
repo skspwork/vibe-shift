@@ -7,23 +7,20 @@ function loadNumber(key: string, fallback: number): number {
 }
 
 interface AppState {
-  // Selected node
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
 
-  // Focus mode
-  focusNodeId: string | null;
-  setFocusNodeId: (id: string | null) => void;
+  columns: number;
+  setColumns: (n: number) => void;
 
-  // Pan to node (search-triggered only)
-  panToNodeId: string | null;
-  setPanToNodeId: (id: string | null) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
 
-  // Graph columns
-  graphColumns: number;
-  setGraphColumns: (n: number) => void;
+  collapseAll: number;
+  expandAll: number;
+  triggerCollapseAll: () => void;
+  triggerExpandAll: () => void;
 
-  // Show disabled nodes
   showDisabledNodes: boolean;
   setShowDisabledNodes: (v: boolean) => void;
 }
@@ -32,18 +29,20 @@ export const useAppStore = create<AppState>((set) => ({
   selectedNodeId: null,
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
-  focusNodeId: null,
-  setFocusNodeId: (id) => set({ focusNodeId: id }),
-
-  panToNodeId: null,
-  setPanToNodeId: (id) => set({ panToNodeId: id }),
-
-  graphColumns: loadNumber("vibeshift:graphColumns", 3),
-  setGraphColumns: (n) => {
-    const v = Math.max(1, Math.min(10, n));
-    localStorage.setItem("vibeshift:graphColumns", String(v));
-    set({ graphColumns: v });
+  columns: loadNumber("vibeshift:columns", 1),
+  setColumns: (n) => {
+    const v = Math.max(1, Math.min(4, n));
+    localStorage.setItem("vibeshift:columns", String(v));
+    set({ columns: v });
   },
+
+  searchQuery: "",
+  setSearchQuery: (q) => set({ searchQuery: q }),
+
+  collapseAll: 0,
+  expandAll: 0,
+  triggerCollapseAll: () => set((s) => ({ collapseAll: s.collapseAll + 1 })),
+  triggerExpandAll: () => set((s) => ({ expandAll: s.expandAll + 1 })),
 
   showDisabledNodes: false,
   setShowDisabledNodes: (v) => set({ showDisabledNodes: v }),

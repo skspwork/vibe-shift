@@ -1,11 +1,5 @@
 import { create } from "zustand";
 
-function loadNumber(key: string, fallback: number): number {
-  if (typeof window === "undefined") return fallback;
-  const v = localStorage.getItem(key);
-  return v ? Number(v) || fallback : fallback;
-}
-
 interface AppState {
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
@@ -29,7 +23,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedNodeId: null,
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
-  columns: loadNumber("vibeshift:columns", 1),
+  columns: 1,
   setColumns: (n) => {
     const v = Math.max(1, Math.min(4, n));
     localStorage.setItem("vibeshift:columns", String(v));

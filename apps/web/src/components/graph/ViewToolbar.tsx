@@ -1,11 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { SearchPanel } from "./SearchPanel";
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 
 export function ViewToolbar({ projectId }: { projectId: string }) {
   const { columns, setColumns, showDisabledNodes, setShowDisabledNodes, triggerCollapseAll, triggerExpandAll } = useAppStore();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("vibeshift:columns");
+    if (saved) setColumns(Number(saved));
+  }, [setColumns]);
 
   return (
     <div className="bg-[var(--bg-surface)] border-b border-[var(--border-default)] px-4 py-1.5 flex items-center gap-4 shrink-0">

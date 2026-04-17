@@ -8,6 +8,7 @@ interface ChangelogEntry {
   purpose: string;
   linked_at: string;
   reason: string;
+  user_name?: string | null;
 }
 
 const PURPOSE_STYLES: Record<string, string> = {
@@ -71,6 +72,9 @@ function TimelineEntry({ entry, isLast }: { entry: ChangelogEntry; isLast: boole
           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium leading-none ${badgeStyle}`}>
             {entry.purpose}
           </span>
+          {entry.user_name && (
+            <span className="text-[11px] text-gray-500 whitespace-nowrap">by {entry.user_name}</span>
+          )}
         </div>
         <p className="text-xs font-medium text-gray-700 mt-0.5">
           {entry.changelog.title}

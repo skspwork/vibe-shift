@@ -106,6 +106,7 @@ export const CreateProjectSchema = z.object({
   purpose: z.string().min(1),
   constraints: z.string().optional(),
   node_instructions: NodeInstructionsSchema,
+  user_name: z.string().optional(),
 });
 
 export const UpdateProjectSchema = z.object({
@@ -126,6 +127,7 @@ export const CreateNodeSchema = z.object({
   changelog_id: z.string().uuid(),
   url: z.string().url().optional(),
   created_by: CreatedBy.default("user"),
+  user_name: z.string().optional(),
   requirement_category: RequirementCategory.optional(),
 });
 
@@ -135,6 +137,7 @@ export const UpdateNodeSchema = z.object({
   url: z.string().url().nullable().optional(),
   changelog_id: z.string().uuid().nullable().optional(),
   changelog_purpose: z.string().optional(),
+  user_name: z.string().optional(),
   requirement_category: RequirementCategory.optional(),
 });
 

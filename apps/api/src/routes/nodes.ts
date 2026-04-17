@@ -137,6 +137,7 @@ app.post("/", async (c) => {
     changelog_id: parsed.changelog_id || null,
     requirement_category: parsed.requirement_category || null,
     created_by: parsed.created_by,
+    user_name: parsed.user_name || null,
     created_at: now,
     updated_at: now,
   });
@@ -272,8 +273,8 @@ app.patch("/:id", async (c) => {
   const parsed = UpdateNodeSchema.parse(body);
   const now = new Date().toISOString();
 
-  // Extract changelog fields (don't write to nodes table)
-  const { changelog_id, changelog_purpose, ...nodeUpdates } = parsed;
+  // Extract changelog fields and user_name (not columns on nodes table for updates)
+  const { changelog_id, changelog_purpose, user_name: _ignoredUserName, ...nodeUpdates } = parsed;
 
   await db
     .update(schema.nodes)
@@ -467,13 +468,14 @@ app.get("/:id/changelogs", async (c) => {
   // Fetch reason for each linked changelog
   const result = links.map((link: any) => {
     const reasons = rawDb.prepare(
-      "SELECT role, content FROM changelog_reasons WHERE changelog_id = ? ORDER BY created_at ASC"
+      "SELECT role, user_name, content FROM changelog_reasons WHERE changelog_id = ? ORDER BY created_at ASC"
     ).all(link.id) as any[];
     return {
       changelog: { id: link.id, title: link.title, created_at: link.created_at },
       purpose: link.purpose,
       linked_at: link.linked_at,
       reason: reasons[0]?.content || link.title,
+      user_name: reasons[0]?.user_name || null,
     };
   });
 

@@ -24,7 +24,7 @@ app.post("/", async (c) => {
 app.post("/:id/reasons", async (c) => {
   const changelogId = c.req.param("id");
   const body = await c.req.json();
-  const { role, content } = body;
+  const { role, content, user_name } = body;
   if (!role || !content) return c.json({ error: "role and content required" }, 400);
 
   const msgId = uuid();
@@ -32,6 +32,7 @@ app.post("/:id/reasons", async (c) => {
     id: msgId,
     changelog_id: changelogId,
     role,
+    user_name: user_name ?? null,
     content,
     created_at: new Date().toISOString(),
   });

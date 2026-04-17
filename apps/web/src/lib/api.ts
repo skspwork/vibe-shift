@@ -1,6 +1,15 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+function resolveApiBase(): string {
+  // Build-time override wins
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  // Browser: derive from the page host so LAN access works out of the box
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  }
+  return "http://localhost:3001";
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const API_BASE = resolveApiBase();
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...options,

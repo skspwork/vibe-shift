@@ -8,6 +8,7 @@ import edges from "./routes/edges.js";
 import graph from "./routes/graph.js";
 import changelogs from "./routes/changelogs.js";
 import { db, rawDb, schema } from "./db/index.js";
+import { bearerAuth } from "./middleware/auth.js";
 import { v4 as uuidv4 } from "uuid";
 
 // Run migrations inline
@@ -40,6 +41,7 @@ function initDb() {
       changelog_id TEXT REFERENCES changelogs(id),
       requirement_category TEXT,
       created_by TEXT NOT NULL DEFAULT 'user',
+      user_name TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       disabled_at TEXT
@@ -57,6 +59,7 @@ function initDb() {
       id TEXT PRIMARY KEY,
       changelog_id TEXT NOT NULL REFERENCES changelogs(id),
       role TEXT NOT NULL,
+      user_name TEXT,
       content TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
@@ -84,7 +87,9 @@ function initDb() {
   addColumnIfMissing("nodes", "disabled_at", "TEXT");
   addColumnIfMissing("nodes", "url", "TEXT");
   addColumnIfMissing("nodes", "requirement_category", "TEXT");
+  addColumnIfMissing("nodes", "user_name", "TEXT");
   addColumnIfMissing("projects", "node_instructions", "TEXT");
+  addColumnIfMissing("changelog_reasons", "user_name", "TEXT");
 
   // ─── Migrate old table names to new names ───
   try {
@@ -137,14 +142,22 @@ const app = new Hono();
 
 app.use("/*", cors());
 
+// Health endpoint is publicly accessible (used by load balancers etc.)
+app.get("/", (c) => c.json({ status: "ok", service: "VibeShift API" }));
+
+// All data routes require Bearer token if VIBESHIFT_API_TOKEN is set
+app.use("/projects/*", bearerAuth());
+app.use("/nodes/*", bearerAuth());
+app.use("/edges/*", bearerAuth());
+app.use("/changelogs/*", bearerAuth());
+
 app.route("/projects", projects);
 app.route("/nodes", nodes);
 app.route("/edges", edges);
 app.route("/projects", graph);
 app.route("/changelogs", changelogs);
 
-app.get("/", (c) => c.json({ status: "ok", service: "VibeShift API" }));
-
 const port = Number(process.env.PORT) || 3001;
-console.log(`VibeShift API running on http://localhost:${port}`);
+const authMode = process.env.VIBESHIFT_API_TOKEN ? "shared-token" : "none (dev mode)";
+console.log(`VibeShift API running on http://localhost:${port} (auth: ${authMode})`);
 serve({ fetch: app.fetch, port });

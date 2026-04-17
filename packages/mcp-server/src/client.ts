@@ -1,9 +1,24 @@
 const API_URL = process.env.VIBESHIFT_API_URL || "http://localhost:3001";
+const API_TOKEN = process.env.VIBESHIFT_API_TOKEN;
+export const USER_NAME = process.env.VIBESHIFT_USER_NAME;
+
+if (!USER_NAME) {
+  console.error(
+    "[VibeShift] VIBESHIFT_USER_NAME が未設定です。チーム利用では Claude Desktop の MCP 設定に env として追加してください。"
+  );
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string> | undefined),
+  };
+  if (API_TOKEN) {
+    headers.Authorization = `Bearer ${API_TOKEN}`;
+  }
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -12,14 +27,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+function withUserName<T extends Record<string, any>>(data: T): T {
+  if (USER_NAME && data.user_name === undefined) {
+    return { ...data, user_name: USER_NAME };
+  }
+  return data;
+}
+
 export const apiClient = {
   // Projects
   getProject: (id: string) => request<any>(`/projects/${id}`),
   getProjects: () => request<any[]>("/projects"),
   createProject: (data: any) =>
-    request<any>("/projects", { method: "POST", body: JSON.stringify(data) }),
+    request<any>("/projects", { method: "POST", body: JSON.stringify(withUserName(data)) }),
   updateProject: (id: string, data: any) =>
-    request<any>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    request<any>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(withUserName(data)) }),
 
   // Graph
   getProjectGraph: (projectId: string) =>
@@ -27,10 +49,10 @@ export const apiClient = {
 
   // Nodes
   createNode: (data: any) =>
-    request<any>("/nodes", { method: "POST", body: JSON.stringify(data) }),
+    request<any>("/nodes", { method: "POST", body: JSON.stringify(withUserName(data)) }),
   getNode: (id: string) => request<any>(`/nodes/${id}`),
   updateNode: (id: string, data: any) =>
-    request<any>(`/nodes/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    request<any>(`/nodes/${id}`, { method: "PATCH", body: JSON.stringify(withUserName(data)) }),
   deleteNode: (id: string) =>
     request<any>(`/nodes/${id}`, { method: "DELETE" }),
   enableNode: (id: string) =>
@@ -58,7 +80,7 @@ export const apiClient = {
   addChangelogReason: (changelogId: string, role: string, content: string) =>
     request<any>(`/changelogs/${changelogId}/reasons`, {
       method: "POST",
-      body: JSON.stringify({ role, content }),
+      body: JSON.stringify(withUserName({ role, content })),
     }),
 
   // Project context

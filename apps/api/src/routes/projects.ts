@@ -60,6 +60,7 @@ app.post("/", async (c) => {
     title: parsed.name,
     content: overviewContent,
     created_by: "user",
+    user_name: parsed.user_name || null,
     created_at: now,
     updated_at: now,
   });

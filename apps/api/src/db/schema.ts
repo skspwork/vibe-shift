@@ -29,6 +29,7 @@ export const nodes = sqliteTable("nodes", {
   changelog_id: text("changelog_id").references(() => changelogs.id),
   requirement_category: text("requirement_category"),
   created_by: text("created_by").notNull().default("user"),
+  user_name: text("user_name"),
   created_at: text("created_at").notNull(),
   updated_at: text("updated_at").notNull(),
   disabled_at: text("disabled_at"),
@@ -64,6 +65,7 @@ export const changelog_reasons = sqliteTable("changelog_reasons", {
     .notNull()
     .references(() => changelogs.id),
   role: text("role").notNull(),
+  user_name: text("user_name"),
   content: text("content").notNull(),
   created_at: text("created_at").notNull(),
 });

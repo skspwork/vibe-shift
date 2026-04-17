@@ -77,6 +77,10 @@ export function NodeDetail({ nodeId, projectId, onUpdate }: Props) {
 
       <h2 className="font-bold text-lg tracking-tight leading-snug">{node.title}</h2>
 
+      {node.user_name && (
+        <div className="text-xs text-[var(--text-muted)]">作成者: {node.user_name}</div>
+      )}
+
       {node.url && (
         <a
           href={node.url}
